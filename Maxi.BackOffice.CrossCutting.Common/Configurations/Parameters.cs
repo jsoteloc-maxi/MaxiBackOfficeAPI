@@ -1,8 +1,5 @@
-﻿using System;
-using System.Configuration;
-using System.Data.SqlClient;
-
-using Maxi.Core.VerticalServices.Security;
+﻿using System.Configuration;
+using Microsoft.Data.SqlClient;
 
 
 namespace Maxi.BackOffice.CrossCutting.Common.Configurations
@@ -45,7 +42,6 @@ namespace Maxi.BackOffice.CrossCutting.Common.Configurations
             {
                 string connstr = ConfigurationManager.ConnectionStrings[Name].ConnectionString;
                 var connnectionStringBuilder = new SqlConnectionStringBuilder(connstr);
-
 
                 return connnectionStringBuilder.ToString();
             }
