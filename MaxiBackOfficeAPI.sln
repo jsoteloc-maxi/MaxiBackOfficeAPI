@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.9.34902.65
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MaxiBackOfficeAPI", "MaxiBackOfficeAPI\MaxiBackOfficeAPI.csproj", "{60AA84B4-9F28-4413-8E4B-29E3C06E6C5D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MaxiBackOfficeAPI", "MaxiBackOfficeAPI\MaxiBackOfficeAPI.csproj", "{60AA84B4-9F28-4413-8E4B-29E3C06E6C5D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Maxi.BackOffice.Agent.Domain", "Maxi.BackOffice.Agent.Domain\Maxi.BackOffice.Agent.Domain.csproj", "{82DB05E0-01A7-4C25-9D52-E760EFDA842E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Maxi.BackOffice.Agent.Domain", "Maxi.BackOffice.Agent.Domain\Maxi.BackOffice.Agent.Domain.csproj", "{82DB05E0-01A7-4C25-9D52-E760EFDA842E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Maxi.BackOffice.Agent", "Maxi.BackOffice.Agent", "{17B0A485-5661-4B16-A770-89DF0DB4CA88}"
 EndProject
@@ -13,7 +13,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Maxi.BackOffice.Apis", "Max
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Maxi.BackOffice.CrossCutting", "Maxi.BackOffice.CrossCutting", "{A76A090D-4F06-4A6E-A068-05189903A928}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Maxi.BackOffice.CrossCutting.Common", "Maxi.BackOffice.CrossCutting.Common\Maxi.BackOffice.CrossCutting.Common.csproj", "{640F08E3-68DD-42B3-93D9-13967B79C3A0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Maxi.BackOffice.CrossCutting.Common", "Maxi.BackOffice.CrossCutting.Common\Maxi.BackOffice.CrossCutting.Common.csproj", "{640F08E3-68DD-42B3-93D9-13967B79C3A0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Maxi.BackOffice.Agent.Infrastructure", "Maxi.BackOffice.Agent.Infrastructure\Maxi.BackOffice.Agent.Infrastructure.csproj", "{0963EC7C-22F9-48C0-9FDC-29189F5517C4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{640F08E3-68DD-42B3-93D9-13967B79C3A0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{640F08E3-68DD-42B3-93D9-13967B79C3A0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{640F08E3-68DD-42B3-93D9-13967B79C3A0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0963EC7C-22F9-48C0-9FDC-29189F5517C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0963EC7C-22F9-48C0-9FDC-29189F5517C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0963EC7C-22F9-48C0-9FDC-29189F5517C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0963EC7C-22F9-48C0-9FDC-29189F5517C4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -41,6 +47,7 @@ Global
 		{60AA84B4-9F28-4413-8E4B-29E3C06E6C5D} = {1EBDD87B-B8E7-4CF9-A04F-A12813C513CB}
 		{82DB05E0-01A7-4C25-9D52-E760EFDA842E} = {17B0A485-5661-4B16-A770-89DF0DB4CA88}
 		{640F08E3-68DD-42B3-93D9-13967B79C3A0} = {A76A090D-4F06-4A6E-A068-05189903A928}
+		{0963EC7C-22F9-48C0-9FDC-29189F5517C4} = {17B0A485-5661-4B16-A770-89DF0DB4CA88}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B0194AD5-B8C3-4CAB-8872-BCBD054635E7}
