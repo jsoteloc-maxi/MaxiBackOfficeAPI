@@ -17,7 +17,6 @@ using Maxi.BackOffice.Agent.Application.Contracts;
 using Maxi.BackOffice.CrossCutting.Common.Extensions;
 using Maxi.BackOffice.Agent.Infrastructure.Common;
 using Maxi.BackOffice.CrossCutting.Enums;
-using System.Runtime.Remoting.Contexts;
 using System.Text.RegularExpressions;
 
 namespace Maxi.BackOffice.Agent.Application.Services
