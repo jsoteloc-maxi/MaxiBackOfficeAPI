@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Maxi.BackOffice.Agent.Application.Contracts;
+﻿using Maxi.BackOffice.Agent.Application.Contracts;
 using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.Interfaces;
-using Maxi.BackOffice.CrossCutting.Common.Common;
+using Microsoft.AspNetCore.Http;
 
 namespace Maxi.BackOffice.Agent.Application.Services
 {
@@ -16,7 +10,7 @@ namespace Maxi.BackOffice.Agent.Application.Services
         {
         }
 
-        dynamic IApiLoginService.AutenticateSessionData(dynamic r)
+        dynamic IApiLoginService.AutenticateSessionData(dynamic r, string userName, string lastName)
         {
             //usara los datos de session obtenidos desde, ...
 
@@ -24,8 +18,8 @@ namespace Maxi.BackOffice.Agent.Application.Services
             {
                 // Id del Usuario en el Sistema de Información (BD)
                 //r.IdUser = SessionCtx.IdUser;
-                r.Nombre = SessionCtx.UserName;
-                r.Apellidos = SessionCtx.UserName;
+                r.Nombre = userName;
+                r.Apellidos = lastName;
                 //r.FrontSessionGuid = SessionCtx.SessionGuid;
                 r.Email = "";
                 r.Rol = "";

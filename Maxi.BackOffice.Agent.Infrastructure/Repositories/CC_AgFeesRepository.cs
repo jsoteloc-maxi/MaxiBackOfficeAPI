@@ -9,6 +9,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
     public class CC_AgFeesRepository : ICC_AgFeesRepository
     {
         private readonly UnitOfWorkSqlServerAdapter db;
+        // 
         private readonly AppCurrentSessionContext session;
         public CC_AgFeesEntity entity;
 

@@ -3,7 +3,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
-namespace MaxiBackOfficeAPI
+namespace MaxiBackOfficeAPI.Helpers
 {
     internal static class TokenGenerator
     {
@@ -11,7 +11,7 @@ namespace MaxiBackOfficeAPI
         public static string GenerateTokenJwt(UserInfo usuarioInfo)
         {
             // RECUPERAMOS LAS VARIABLES DE CONFIGURACIÓN
-            var jwtConfig = Utils.GetJwtConfig();
+            var jwtConfig = Utils.GetJwtConfig(); // TODO mejora la implementación de Utils 
             string secretKey = jwtConfig.SecretKey;
             string issuerToken = jwtConfig.Issuer;
             string audienceToken = jwtConfig.Audience;

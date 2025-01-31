@@ -1,16 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Maxi.BackOffice.CrossCutting.Common.Common;
-
-
-namespace Maxi.BackOffice.Agent.Application.Contracts
+﻿namespace Maxi.BackOffice.Agent.Application.Contracts
 {
     public interface IApiLoginService : ICustomServiceBase
     {
-        dynamic AutenticateSessionData(dynamic r);
+        dynamic AutenticateSessionData(dynamic r, string userName, string lastName);
     }
 }

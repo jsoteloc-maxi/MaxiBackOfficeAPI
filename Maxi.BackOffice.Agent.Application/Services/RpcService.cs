@@ -1,14 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.ServiceModel;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-
-using Maxi.BackOffice.Agent.Domain.Model;
-using Maxi.BackOffice.Agent.Infrastructure.ExternalServices;
+﻿using Maxi.BackOffice.Agent.Domain.Model;
 using Maxi.BackOffice.Agent.Infrastructure.OrbographWebService;
 using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.Interfaces;
 using Maxi.BackOffice.Agent.Infrastructure.Mappings;
@@ -17,7 +7,6 @@ using Maxi.BackOffice.Agent.Application.Contracts;
 using Maxi.BackOffice.CrossCutting.Common.Extensions;
 using Maxi.BackOffice.Agent.Infrastructure.Common;
 using Maxi.BackOffice.CrossCutting.Enums;
-using System.Text.RegularExpressions;
 
 namespace Maxi.BackOffice.Agent.Application.Services
 {

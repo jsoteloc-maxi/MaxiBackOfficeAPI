@@ -10,8 +10,6 @@ namespace Maxi.BackOffice.Agent.Application.Contracts
 {
     public interface ICustomerService : ICustomServiceBase
     {
-
         Byte[] GetImage(int idCustomer, string imageType);
-
     }
 }
