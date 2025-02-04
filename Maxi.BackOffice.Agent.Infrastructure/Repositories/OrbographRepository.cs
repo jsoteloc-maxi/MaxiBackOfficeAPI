@@ -5,7 +5,7 @@ using Maxi.BackOffice.CrossCutting.Common.Configurations;
 using Maxi.BackOffice.CrossCutting.Common.Common;
 using Maxi.BackOffice.Agent.Infrastructure.Contracts;
 using Maxi.BackOffice.Agent.Infrastructure.ExternalServices;
-using Maxi.BackOffice.Agent.Infrastructure.OrbographWebService;
+using OrbographWebService;
 using Maxi.BackOffice.Agent.Infrastructure.Entities;
 using Maxi.BackOffice.CrossCutting.Common.SqlServer;
 using Maxi.BackOffice.CrossCutting.Common.Extensions;
@@ -268,21 +268,21 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                 s.RegisterObjectTransformation<ValidationRequest>(ex => new
                 {
                     //Type = ex.GetType().ToString(),
-                    ex.ExtensionData,
+                    //ex.ExtensionData,
                     ex.FraudInput,
                     ex.MetaData,
                     ex.Profile,
                     ex.ProfileName,
-                    Reco_ExtensionData = ex.Reco.ExtensionData,
+                    //Reco_ExtensionData = ex.Reco.ExtensionData,
                     Reco_RequiredFields = ex.Reco.RequiredFields,
                     Reco_UniqueDocName = ex.Reco.UniqueDocName,
                 });
             });
 
             //ver si esto se hace al inicio de cada peticion
-            NLog.MappedDiagnosticsLogicalContext.Set("IdAgent", session.IdAgent);
-            NLog.MappedDiagnosticsLogicalContext.Set("IdUser", session.IdUser);
-            NLog.MappedDiagnosticsLogicalContext.Set("FrontGuid", session.SessionGuid);
+            MappedDiagnosticsLogicalContext.Set("IdAgent", session.IdAgent);
+            MappedDiagnosticsLogicalContext.Set("IdUser", session.IdUser);
+            MappedDiagnosticsLogicalContext.Set("FrontGuid", session.SessionGuid);
 
             isLogSetted = true;
             return;

@@ -1,4 +1,4 @@
-﻿using Maxi.BackOffice.Agent.Infrastructure.OrbographWebService;
+﻿using OrbographWebService;
 
 namespace Maxi.BackOffice.Agent.Infrastructure.Contracts
 {

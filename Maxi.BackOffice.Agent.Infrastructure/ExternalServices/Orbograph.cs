@@ -3,7 +3,7 @@ using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using Maxi.BackOffice.CrossCutting.Common.Common;
-using Maxi.BackOffice.Agent.Infrastructure.OrbographWebService;
+using OrbographWebService;
 
 namespace Maxi.BackOffice.Agent.Infrastructure.ExternalServices
 {

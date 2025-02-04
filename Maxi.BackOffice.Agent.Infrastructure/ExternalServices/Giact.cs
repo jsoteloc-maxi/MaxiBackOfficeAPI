@@ -33,11 +33,9 @@ namespace Maxi.BackOffice.Agent.Infrastructure.ExternalServices
             }
             if (_api == GiactApiType.SOAP)
             {
-                
                 //https://stackoverflow.com/questions/45465731/how-to-fix-the-server-certificate-is-not-configured-properly-with-http-sys-on/48100471
                 //requiere esto para forzar TLS1.2
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-
                 _clientSOAP = new GiactService.InquiriesWS58SoapClient();
             }
         }
