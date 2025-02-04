@@ -2,6 +2,7 @@
 using System.Net.Http.Headers;
 using Maxi.BackOffice.Agent.Domain.Model;
 using Maxi.BackOffice.CrossCutting.Common.Extensions;
+using static GiactService.InquiriesWS58SoapClient;
 
 namespace Maxi.BackOffice.Agent.Infrastructure.ExternalServices
 {
@@ -36,7 +37,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.ExternalServices
                 //https://stackoverflow.com/questions/45465731/how-to-fix-the-server-certificate-is-not-configured-properly-with-http-sys-on/48100471
                 //requiere esto para forzar TLS1.2
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-                _clientSOAP = new GiactService.InquiriesWS58SoapClient();
+                _clientSOAP = new GiactService.InquiriesWS58SoapClient(EndpointConfiguration.InquiriesWS_5_8Soap12);
             }
         }
 
