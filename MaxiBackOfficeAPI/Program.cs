@@ -3,6 +3,7 @@ using Maxi.BackOffice.Agent.Application.Contracts;
 using Maxi.BackOffice.Agent.Application.Services;
 using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.Interfaces;
 using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer;
+using MaxiBackOfficeAPI.ExceptionHandler;
 using MaxiBackOfficeAPI.MessageHandler;
 using MaxiBackOfficeAPI.Middleware;
 
@@ -32,7 +33,8 @@ namespace MaxiBackOfficeAPI
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
-
+            builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+            builder.Services.AddProblemDetails();
             var app = builder.Build();
             #endregion
 
@@ -47,6 +49,8 @@ namespace MaxiBackOfficeAPI
             {
                 app.UseHttpsRedirection(); // Solo habilitado en producción
             }
+
+            app.UseExceptionHandler();
 
             //app.UseAuthentication();
             app.UseAuthorization();
