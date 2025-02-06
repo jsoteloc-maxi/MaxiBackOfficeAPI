@@ -7,24 +7,19 @@ namespace MaxiBackOfficeAPI.Helpers
 {
     internal static class TokenGenerator
     {
-        // GENERAMOS EL TOKEN CON LA INFORMACIÓN DEL USUARIO
-        public static string GenerateTokenJwt(UserInfo usuarioInfo)
+        public static string GenerateTokenJwt(UserInfo usuarioInfo, IConfiguration configuration)
         {
-            // RECUPERAMOS LAS VARIABLES DE CONFIGURACIÓN
-            var jwtConfig = Utils.GetJwtConfig(); // TODO mejora la implementación de Utils 
-            string secretKey = jwtConfig.SecretKey;
-            string issuerToken = jwtConfig.Issuer;
-            string audienceToken = jwtConfig.Audience;
-            int _Expires = jwtConfig.Expires;
+            var jwtConfig = configuration.GetSection("Jwt");
+            string secretKey = jwtConfig["Key"];
+            string issuerToken = jwtConfig["Issuer"];
+            string audienceToken = jwtConfig["Audience"];
+            int expires = Convert.ToInt32(jwtConfig["Expires"]);
 
+            var symmetricSecurityKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(secretKey));
+            var signingCredentials = new SigningCredentials(symmetricSecurityKey, SecurityAlgorithms.HmacSha256);
+            var header = new JwtHeader(signingCredentials);
 
-            // CREAMOS EL HEADER //
-            var _symmetricSecurityKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(secretKey));
-            var _signingCredentials = new SigningCredentials(_symmetricSecurityKey, SecurityAlgorithms.HmacSha256);
-            var _Header = new JwtHeader(_signingCredentials);
-
-            // CREAMOS LOS CLAIMS //
-            var _claims = new[] {
+            var claims = new[] {
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim(JwtRegisteredClaimNames.NameId, usuarioInfo.IdUser.ToString()),
                 new Claim("nombre", usuarioInfo.Nombre),
@@ -34,23 +29,22 @@ namespace MaxiBackOfficeAPI.Helpers
                 new Claim(ClaimTypes.Role, usuarioInfo.Rol)
             };
 
-            // CREAMOS EL PAYLOAD //
-            var _payload = new JwtPayload(
+            var payload = new JwtPayload(
                     issuer: issuerToken,
                     audience: audienceToken,
-                    claims: _claims,
+                    claims: claims,
                     notBefore: DateTime.UtcNow,
                     // Exipra a la 24 horas.
-                    expires: DateTime.UtcNow.AddHours(_Expires)
+                    expires: DateTime.UtcNow.AddHours(expires)
                 );
 
             // GENERAMOS EL TOKEN //
-            var _Token = new JwtSecurityToken(
-                    _Header,
-                    _payload
+            var token = new JwtSecurityToken(
+                    header,
+                    payload
                 );
 
-            return new JwtSecurityTokenHandler().WriteToken(_Token);
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }
 }

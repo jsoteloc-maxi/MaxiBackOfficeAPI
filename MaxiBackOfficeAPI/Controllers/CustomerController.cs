@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MaxiBackOfficeAPI.Controllers
 {
-    [Authorize] // TODO Revisar la configuración de autorización
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class CustomerController : ControllerBase

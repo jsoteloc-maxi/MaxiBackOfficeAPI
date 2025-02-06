@@ -1,9 +1,11 @@
 ﻿using Maxi.BackOffice.Agent.Application.Contracts;
 using Maxi.BackOffice.Agent.Domain.Model;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MaxiBackOfficeAPI.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class AgCustFeesController : ControllerBase

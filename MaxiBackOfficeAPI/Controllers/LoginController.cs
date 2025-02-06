@@ -1,6 +1,5 @@
 ﻿using Maxi.BackOffice.Agent.Application.Contracts;
 using MaxiBackOfficeAPI.Helpers;
-using MaxiBackOfficeAPI.Middleware;
 using MaxiBackOfficeAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,10 +11,12 @@ namespace MaxiBackOfficeAPI.Controllers
     public class LoginController : ControllerBase
     {
         private readonly IApiLoginService _loginService;
+        private readonly IConfiguration _configuration;
 
-        public LoginController(IApiLoginService loginService)
+        public LoginController(IApiLoginService loginService, IConfiguration configuration)
         {
             _loginService = loginService;
+            _configuration = configuration;
         }
 
         [HttpPost]
@@ -24,26 +25,22 @@ namespace MaxiBackOfficeAPI.Controllers
         public IActionResult Login(ApiLoginRequest login)
         {
             if (login == null)
-                return BadRequest("Usuario y Contraseña requeridos.");
+                return Unauthorized("Usuario y Contraseña requeridos.");
 
             if (string.IsNullOrEmpty(login.UserName) || string.IsNullOrEmpty(login.Password))
-                return BadRequest("Usuario y Contraseña requeridos.");
+                return Unauthorized("Usuario y Contraseña requeridos.");
 
-            // TODO verificar el username
-            var appCurrentSessionContext = HttpContext.Items["appCurrentSessionContext"] as AppCurrentSessionContext;
-
-            UserInfo _userInfo = _loginService.AutenticateSessionData(
-                new UserInfo { IdUser = login.IdUser, FrontSessionGuid = login.SessionGuid }, appCurrentSessionContext.UserName, appCurrentSessionContext.UserName);
-            //var _userInfo = AutenticarUsuario(login.UserName, login.Password);
-
-            if (_userInfo != null)
+            var _token = TokenGenerator.GenerateTokenJwt(new UserInfo()
             {
-                return Ok(new { token = TokenGenerator.GenerateTokenJwt(_userInfo) });
-            }
-            else
-            {
-                return Unauthorized();
-            }
+                Nombre = login.UserName,
+                Apellidos = login.UserName,
+                Email = "",
+                Rol = "",
+                IdUser = login.IdUser,
+                FrontSessionGuid = login.SessionGuid
+            }, _configuration);
+
+            return Ok(new { token = _token });
         }
     }
 }

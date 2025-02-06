@@ -251,7 +251,7 @@ namespace MaxiBackOfficeAPI.Controllers
         }
 
 
-        [AllowAnonymous] // Este endpoint ignora las políticas globales de autorización]
+        [AllowAnonymous] // antes [OverrideAuthorization]
         [HttpGet, Route("CheckEditedElements")]
         public List<CheckElementEdited> GetCheckEditedElements(int idCheck)
         {

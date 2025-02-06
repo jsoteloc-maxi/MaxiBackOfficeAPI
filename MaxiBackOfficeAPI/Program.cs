@@ -6,6 +6,12 @@ using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer;
 using MaxiBackOfficeAPI.ExceptionHandler;
 using MaxiBackOfficeAPI.MessageHandler;
 using MaxiBackOfficeAPI.Middleware;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Authorization;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+
 
 namespace MaxiBackOfficeAPI
 {
@@ -16,65 +22,97 @@ namespace MaxiBackOfficeAPI
             var builder = WebApplication.CreateBuilder(args);
 
             #region [   Configuración de servicios  ]
-            
+            //builder.Services.Configure<IISServerOptions>(options => options.AutomaticAuthentication = false);
+
             // Registrar el TokenValidatorHandler como un servicio
             builder.Services.AddTransient<TokenValidatorHandler>();
             // Registrar el LogRequestResponseHandler como un servicio
-            builder.Services.AddTransient<LogRequestResponseHandler>(); 
+            builder.Services.AddTransient<LogRequestResponseHandler>();
 
             builder.Services.AddSingleton<IUnitOfWork, UnitOfWorkSqlServer>();
             builder.Services.AddSingleton<IApiLoginService, ApiLoginService>();
             builder.Services.AddSingleton<IRpcService, RpcService>();
             builder.Services.AddSingleton<IAgCustFeesService, AgCustFeesService>();
             builder.Services.AddSingleton<ICustomerService, CustomerService>();
+
+
+
+
             // Habilita el soporte a controladores
-            builder.Services.AddControllers();
+            builder.Services.AddControllers(opts =>
+            {
+                if (builder.Environment.IsDevelopment())
+                {
+                    // deshabilita autenticación para todos los controladores
+                    opts.Filters.Add<AllowAnonymousFilter>();
+                }
+                else
+                {
+                    // habilita autenticación para todos los controladores
+                    var authenticatedUserPolicy = new AuthorizationPolicyBuilder()
+                              .RequireAuthenticatedUser()
+                              .Build();
+                    opts.Filters.Add(new AuthorizeFilter(authenticatedUserPolicy));
+                }
+            });
+            //.AddJsonOptions(options =>
+            //{
+            //    options.JsonSerializerOptions.PropertyNamingPolicy = null; // Evita que las propiedades se conviertan a camelCase
+            //});
+
+            // Agrega authenticación configurada para JwtBearer
+            var jwtSettings = builder.Configuration.GetSection("Jwt");
+            var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = jwtSettings["Issuer"],
+                    ValidAudience = jwtSettings["Audience"],
+                    IssuerSigningKey = new SymmetricSecurityKey(key)
+                };
+            });
+
+            builder.Services.AddAuthorization();
             // Habilita el soporte a Swagger/OpenAPI en los servicios
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
             builder.Services.AddProblemDetails();
-            var app = builder.Build();
             #endregion
 
-            #region [   Configurar la tubería de middleware (equivalente a Configure en Startup.cs NET 5 o inferior)  ]
+
+
+            #region [   Configuración de aplicación     ]
+            var app = builder.Build();
+
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
+                app.UseDeveloperExceptionPage();
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
             if (app.Environment.IsProduction())
             {
-                app.UseHttpsRedirection(); // Solo habilitado en producción
+                app.UseHttpsRedirection(); // Redirige HTTP a HTTPS
             }
 
             app.UseExceptionHandler();
-
-            //app.UseAuthentication();
-            app.UseAuthorization();
+            app.UseAuthentication(); // Habilita autenticación (JWT, OAuth, etc.)
+            app.UseAuthorization(); // Habilita autorización (roles, claims, políticas)
+            //app.UseCors("DefaultPolicy"); // Habilita CORS si está configurado}
+            //app.UseRouting(); // Habilita el enrutamiento de las solicitudes HTTP
             // Configura el middleware para session context desde los headers
             app.UseMiddleware<HeaderMiddleware>();
             // Configurar el middleware para enrutamiento
             app.MapControllers();
-            // TODO: revisar la validación de token
-            // Añadir el handler de validación de token a la cadena de MessageHandlers
-            //app.UseHttpRequestMiddleware(async (context, next) =>
-            //{
-            //    var tokenValidatorHandler = context.RequestServices.GetRequiredService<TokenValidatorHandler>();
-            //    var response = await tokenValidatorHandler.SendAsync(context.Request, new CancellationToken());
-            //    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-            //    {
-            //        // Si el token es inválido, puedes devolver una respuesta personalizada
-            //        context.Response.StatusCode = (int)System.Net.HttpStatusCode.Unauthorized;
-            //        await context.Response.WriteAsync("Token no válido o expirado.");
-            //    }
-            //    else
-            //    {
-            //        await next();
-            //    }
-            //});
             #endregion
 
             app.Run();
