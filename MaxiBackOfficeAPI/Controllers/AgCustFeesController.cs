@@ -17,13 +17,13 @@ namespace MaxiBackOfficeAPI.Controllers
             _agCustFeesService = agCustFeesService;
         }
 
-        [HttpGet]
-        public AgCustFeesModel GET([FromQuery] int id)
+        [HttpGet("GetById")]
+        public AgCustFeesModel GetById([FromQuery] int id)
         {
             return _agCustFeesService.GetById(id);
         }
 
-        [HttpGet]
+        [HttpGet("GetByAgent")]
         public List<AgCustFeesModel> GetByAgent([FromQuery] int idAgent)
         {
             return _agCustFeesService.GetAll(idAgent);
@@ -34,8 +34,8 @@ namespace MaxiBackOfficeAPI.Controllers
         /// </summary>
         /// <param name="model"></param>
         /// <returns></returns>
-        [HttpPost]
-        public AgCustFeesModel POST([FromBody] AgCustFeesModel model)
+        [HttpPost("UpgradeAgCustFees")]
+        public AgCustFeesModel UpgradeAgCustFees([FromBody] AgCustFeesModel model)
         {
             var s = (model.APIPostAction ?? "").Trim().ToUpper();
 
@@ -55,25 +55,25 @@ namespace MaxiBackOfficeAPI.Controllers
         }
 
         /// <summary>
-        /// TODO este metodo no se manda llamar desde H1
+        /// TODO este metodo no se manda llamar desde H1, revise si es llamado desde cronos
         /// </summary>
         /// <param name="model"></param>
         /// <returns></returns>
-        [HttpPut]
-        public int PUT([FromBody] AgCustFeesModel model)
-        {
-            return _agCustFeesService.Update(model);
-        }
+        //[HttpPut]
+        //public int PUT([FromBody] AgCustFeesModel model)
+        //{
+        //    return _agCustFeesService.Update(model);
+        //}
 
         /// <summary>
-        /// TODO este metodo no se manda llamar desde H1
+        /// TODO este metodo no se manda llamar desde H1, revise si es llamado desde cronos
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
-        [HttpDelete]
-        public int DELETE([FromBody] int id)
-        {
-            return _agCustFeesService.Delete(id);
-        }
+        //[HttpDelete]
+        //public int DELETE([FromBody] int id)
+        //{
+        //    return _agCustFeesService.Delete(id);
+        //}
     }
 }

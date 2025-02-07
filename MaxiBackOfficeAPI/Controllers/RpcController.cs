@@ -3,6 +3,7 @@ using Maxi.BackOffice.Agent.Domain.Model;
 using MaxiBackOfficeAPI.Middleware;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 
 namespace MaxiBackOfficeAPI.Controllers
 {
@@ -21,8 +22,7 @@ namespace MaxiBackOfficeAPI.Controllers
         /// Obtiene la lista de tipos de cheque
         /// </summary>
         /// <returns></returns>
-        [HttpGet]
-        [Route("CheckTypesList")]
+        [HttpGet("CheckTypesList")]
         public IActionResult GetCheckTypesList()
         {
             return Ok(_rpcService.GetCheckTypesList());
@@ -33,8 +33,7 @@ namespace MaxiBackOfficeAPI.Controllers
         /// </summary>
         /// <param name="req"></param>
         /// <returns></returns>
-        [HttpPost]
-        [Route("ValidateCheckImage")]
+        [HttpPost("ValidateCheckImage")]
         public MaxiItemInfo ValidateCheckImage(ObjetoRequestItem req)//Este metodo es el que llama a orbo
         {
             return _rpcService.GetItemInfo(req);
@@ -58,8 +57,7 @@ namespace MaxiBackOfficeAPI.Controllers
         /// </summary>
         /// <param name="req"></param>
         /// <returns></returns>
-        [HttpPost]
-        [Route("ValidateCheckGiact")]
+        [HttpPost("ValidateCheckGiact")]
         public GiactResult ValidateCheckGiact(GiactInquiry req)
         {
             return _rpcService.GiactValidation(req);
@@ -73,8 +71,7 @@ namespace MaxiBackOfficeAPI.Controllers
         /// <param name="acc"></param>
         /// <param name="checkNum"></param>
         /// <returns></returns>
-        [HttpGet]
-        [Route("AccountCautionNotes")]
+        [HttpGet("AccountCautionNotes")]
         public AccountCautionNotes GetCautionNotes(string rout, string acc, string checkNum = "")
         {
             //Api para llamada manual de GetAccountCautionNotes
@@ -88,8 +85,7 @@ namespace MaxiBackOfficeAPI.Controllers
         /// </summary>
         /// <param name="idIssuer"></param>
         /// <returns></returns>
-        [HttpGet]
-        [Route("IssuerAction")]
+        [HttpGet("IssuerAction")]
         public List<IssuerActionCheck> GetIssuerAction(int idIssuer)
         {
             //Api para llamada manual de GetAccountCautionNotes
@@ -106,8 +102,7 @@ namespace MaxiBackOfficeAPI.Controllers
         /// <param name="rout"></param>
         /// <param name="acc"></param>
         /// <returns></returns>
-        [HttpGet]
-        [Route("AccountCheckSummary")]
+        [HttpGet("AccountCheckSummary")]
         public AccountCheckSummary GetAccountCheckSummary(string rout, string acc)
         {
             return _rpcService.GetAccountCheckSummary(rout, acc);
@@ -119,34 +114,72 @@ namespace MaxiBackOfficeAPI.Controllers
         /// <param name="rout"></param>
         /// <param name="acc"></param>
         /// <returns></returns>
-        [HttpGet]
-        [Route("GetMakerByAcc")]
+        [HttpGet("GetMakerByAcc")]
         public CC_GetMakerByAccRes GetMakerByAcc(string rout, string acc)
         {
             return _rpcService.GetMakerByAcc(rout, acc);
         }//Este metodo se llama cada que se edita el cheque
 
 
+        ///// <summary>
+        ///// TODO el metodo RecentChecksBy no se puede repetir para varias acciones, debemos modificar la ruta
+        ///// </summary>
+        //[HttpGet("RecentChecksBy")]
+        //public IActionResult RecentChecksBy([FromQuery] int? idCustomer, [FromQuery] int? idIssuer, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate, [FromQuery] bool? paged, [FromQuery] int? offset, [FromQuery] int? limit, [FromQuery] string? sortColumn = null, [FromQuery] string? sortOrden = null)
+        //{
+        //    if (paged == null && idCustomer != null)
+        //    {
+        //        return Ok(_rpcService.GetRecentChecksByCustomer(idCustomer.Value));
+        //    }
+        //    else if (paged == null && idIssuer != null)
+        //    {
+        //        return Ok(_rpcService.GetRecentChecksByIssuer(idIssuer.Value));
+        //    }
+        //    else if (paged != null && !paged.Value)
+        //    {
+        //        if (idCustomer != null)
+        //        {
+        //            var result = _rpcService.GetRecentChecksByCustomer(idCustomer.Value, startDate, endDate, paged, offset, limit, sortColumn, sortOrden);
+        //            return Ok(result.Data);
+        //        }
+        //        else if (idIssuer != null)
+        //        {
+        //            var result = _rpcService.GetRecentChecksByIssuer(idIssuer.Value, startDate, endDate, paged, offset, limit, sortColumn, sortOrden);
+        //            return Ok(result.Data);
+        //        }
+        //    }
+        //    else if (paged != null && paged.Value)
+        //    {
+        //        if (idCustomer != null)
+        //        {
+        //            var result = _rpcService.GetRecentChecksByCustomer(idCustomer.Value, startDate, endDate, paged, offset, limit, sortColumn, sortOrden);
+        //            return Ok(result.Data);
+        //        }
+        //        else if (idIssuer != null)
+        //        {
+        //            var result = _rpcService.GetRecentChecksByIssuer(idIssuer.Value, startDate, endDate, paged, offset, limit, sortColumn, sortOrden);
+        //            return Ok(result.Data);
+        //        }
+        //    }
+        //}
+
         /// <summary>
         /// Lista de cheques mas recientes del issuer
         /// </summary>
-        [HttpGet]
-        [Route("RecentChecksBy")]
+        [HttpGet("GetRecentChecksByCustomer")]
         public List<CheckTiny> GetRecentChecksByCustomer(int idCustomer)
         {
             return _rpcService.GetRecentChecksByCustomer(idCustomer);
         }
-
-        [HttpGet]
-        [Route("RecentChecksBy")]
+        [HttpGet("GetRecentChecksByIssuer")]
         public List<CheckTiny> GetRecentChecksByIssuer(int idIssuer)
         {
             return _rpcService.GetRecentChecksByIssuer(idIssuer);
         }
 
-        [HttpGet]
-        [Route("RecentChecksBy")]
-        public IActionResult GetRecentChecksByIssuerV2(int idIssuer, DateTime? startDate, DateTime? endDate, bool? paged, int? offset, int? limit, string sortColumn = null, string sortOrden = null)
+        
+        [HttpGet("GetRecentChecksByIssuerPaged")]
+        public IActionResult GetRecentChecksByIssuerPaged(int idIssuer, DateTime? startDate, DateTime? endDate, bool? paged, int? offset, int? limit, string sortColumn = null, string sortOrden = null)
         {
             var result = _rpcService.GetRecentChecksByIssuer(idIssuer, startDate, endDate, paged, offset, limit, sortColumn, sortOrden);
             if (!paged.Value)
@@ -157,9 +190,8 @@ namespace MaxiBackOfficeAPI.Controllers
 
         }
 
-        [HttpGet]
-        [Route("RecentChecksBy")]
-        public IActionResult GetRecentChecksByCustomerV2(int idCustomer, DateTime? startDate, DateTime? endDate, bool? paged, int? offset, int? limit, string sortColumn = null, string sortOrder = null)
+        [HttpGet("GetRecentChecksByCustomerPaged")]
+        public IActionResult GetRecentChecksByCustomerPaged(int idCustomer, DateTime? startDate, DateTime? endDate, bool? paged, int? offset, int? limit, string sortColumn = null, string sortOrder = null)
         {
             var result = _rpcService.GetRecentChecksByCustomer(idCustomer, startDate, endDate, paged, offset, limit, sortColumn, sortOrder);
             if (!paged.Value)
@@ -169,8 +201,7 @@ namespace MaxiBackOfficeAPI.Controllers
 
         }
 
-        [HttpGet]
-        [Route("GetAgFeeComm")]
+        [HttpGet("GetAgFeeComm")]
         public CCAgFeeCommRes GetAgFeeComm(int idAgent, decimal amount, int idState)
         {
             return _rpcService.GetAgFeeCommInfo(idAgent, amount, idState);
@@ -206,17 +237,15 @@ namespace MaxiBackOfficeAPI.Controllers
         }
 
 
-        [HttpGet]
         //[OverrideAuthorization]
-        [Route("ChecksProcessed")]
+        [HttpGet("ChecksProcessed")]
         public List<CheckTiny> GetChecksProcessed(DateTime startDate, DateTime endDate, string custName = "", string checkNum = "")
         {
             return _rpcService.GetChecksProcessedReport(startDate, endDate, custName, checkNum);
         }
 
-        [HttpGet]
         //[OverrideAuthorization]
-        [Route("ChecksRejected")]
+        [HttpGet("ChecksRejected")]
         public List<CheckTiny> GetChecksRejected(DateTime startDate, DateTime endDate, string custName = "", string checkNum = "", string printed = "")
         {
             return _rpcService.GetChecksRejectedReport(startDate, endDate, custName, checkNum, printed);
@@ -224,23 +253,21 @@ namespace MaxiBackOfficeAPI.Controllers
 
 
         [AllowAnonymous] // Este endpoint ignora las políticas globales de autorización
-        [HttpGet, Route("ProcessIRD")]
+        [HttpGet("ProcessIRD")]
         public IRDResponse ProcessIRD(int idCheck, string docType = "")
         {
             return _rpcService.GetCheckIRD(idCheck, docType);
         }
 
-
-
         //[OverrideAuthorization]
-        [HttpGet, Route("PcParam")]
+        [HttpGet("PcParam")]
         public string GetPcParam(string ident, string col)
         {
             return _rpcService.GetPcParam(ident, col);
         }
 
         //[OverrideAuthorization]
-        [HttpPost, Route("PcParam")]
+        [HttpPost("PcParam")]
         public int SetPcParam(dynamic data)
         {
             string i = data.ident;
@@ -252,7 +279,7 @@ namespace MaxiBackOfficeAPI.Controllers
 
 
         [AllowAnonymous] // antes [OverrideAuthorization]
-        [HttpGet, Route("CheckEditedElements")]
+        [HttpGet("CheckEditedElements")]
         public List<CheckElementEdited> GetCheckEditedElements(int idCheck)
         {
             return _rpcService.GetCheckEditedElements(idCheck);
@@ -262,25 +289,25 @@ namespace MaxiBackOfficeAPI.Controllers
         /*UCF*/
         /*TSI_MAXI_013*/
         /*Se declara la ruta GetCheckByMircData en de tipo Get para ejecutar el metodo*/
-        [HttpGet, Route("GetCheckByMircData")]
+        [HttpGet("GetCheckByMircData")]
         public CheckTiny GetCheckByMircData(string ChNum, string RoutNum, string AccNum)
         {
             return _rpcService.GetCheckByMircData(ChNum, RoutNum, AccNum);
         }
 
-        [HttpPost, Route("SetIdcheckImagePending")]
+        [HttpPost("SetIdcheckImagePending")]
         public int SetIdcheckImagePending()
         {
             return _rpcService.SetIdcheckImagePending();
         }
 
-        [HttpPost, Route("DeleteCheckByIdCheckPending")]
+        [HttpPost("DeleteCheckByIdCheckPending")]
         public int DeleteCheckByIdCheckPending(int id)
         {
             return _rpcService.DeleteCheckByIdCheckPending(id);
         }
 
-        [HttpPost, Route("CheckImageProcessed")]
+        [HttpPost("CheckImageProcessed")]
         public int CheckImageProcessed(int id, List<UploadCheck> uploadChecks)
         {
             return _rpcService.CheckImageProcessed(id, uploadChecks);

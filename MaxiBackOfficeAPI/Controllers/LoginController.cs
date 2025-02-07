@@ -19,9 +19,8 @@ namespace MaxiBackOfficeAPI.Controllers
             _configuration = configuration;
         }
 
-        [HttpPost]
+        [HttpPost("")]
         [AllowAnonymous]
-        [Route("")]
         public IActionResult Login(ApiLoginRequest login)
         {
             if (login == null)

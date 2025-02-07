@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Text;
 
 
@@ -22,21 +23,8 @@ namespace MaxiBackOfficeAPI
             var builder = WebApplication.CreateBuilder(args);
 
             #region [   Configuración de servicios  ]
-            //builder.Services.Configure<IISServerOptions>(options => options.AutomaticAuthentication = false);
-
-            // Registrar el TokenValidatorHandler como un servicio
-            builder.Services.AddTransient<TokenValidatorHandler>();
-            // Registrar el LogRequestResponseHandler como un servicio
-            builder.Services.AddTransient<LogRequestResponseHandler>();
-
-            builder.Services.AddSingleton<IUnitOfWork, UnitOfWorkSqlServer>();
-            builder.Services.AddSingleton<IApiLoginService, ApiLoginService>();
-            builder.Services.AddSingleton<IRpcService, RpcService>();
-            builder.Services.AddSingleton<IAgCustFeesService, AgCustFeesService>();
-            builder.Services.AddSingleton<ICustomerService, CustomerService>();
-
-
-
+            // AutomaticAuthentication = false para desactivar la autenticación de ISS/Active Directory
+            // builder.Services.Configure<IISServerOptions>(options => options.AutomaticAuthentication = false);
 
             // Habilita el soporte a controladores
             builder.Services.AddControllers(opts =>
@@ -82,9 +70,23 @@ namespace MaxiBackOfficeAPI
             // Habilita el soporte a Swagger/OpenAPI en los servicios
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
+            builder.Services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new OpenApiInfo { Title = "Maxi.BackOffice.API", Version = "v1" });
+            });
             builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
             builder.Services.AddProblemDetails();
+
+            // Registrar el TokenValidatorHandler como un servicio
+            builder.Services.AddTransient<TokenValidatorHandler>();
+            // Registrar el LogRequestResponseHandler como un servicio
+            builder.Services.AddTransient<LogRequestResponseHandler>();
+
+            builder.Services.AddSingleton<IUnitOfWork, UnitOfWorkSqlServer>();
+            builder.Services.AddSingleton<IApiLoginService, ApiLoginService>();
+            builder.Services.AddSingleton<IRpcService, RpcService>();
+            builder.Services.AddSingleton<IAgCustFeesService, AgCustFeesService>();
+            builder.Services.AddSingleton<ICustomerService, CustomerService>();
             #endregion
 
 
@@ -102,6 +104,7 @@ namespace MaxiBackOfficeAPI
             if (app.Environment.IsProduction())
             {
                 app.UseHttpsRedirection(); // Redirige HTTP a HTTPS
+                app.UseExceptionHandler("/error");
             }
 
             app.UseExceptionHandler();

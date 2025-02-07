@@ -8,7 +8,7 @@ namespace MaxiBackOfficeAPI.Controllers
     public class ConnectionController : ControllerBase
     {
 
-        [HttpGet]
+        [HttpGet("Ping")]
         public IActionResult Ping(string text)
         {
             //this.Request.User
@@ -19,14 +19,14 @@ namespace MaxiBackOfficeAPI.Controllers
         }
 
 
-        [HttpGet, Route("TestRaise")]
+        [HttpGet("TestRaise")]
         public int TestRaise()
         {
             return int.Parse("A");
         }
 
 
-        [HttpGet, Route("TestIrd")]
+        [HttpGet("TestIrd")]
         public int TestGenIrd()
         {
 

@@ -22,7 +22,7 @@ namespace MaxiBackOfficeAPI.Controllers
         /// <param name="idCustomer"></param>
         /// <param name="imageType"></param>
         /// <returns></returns>
-        [Route("Image")]
+        [HttpGet("Image")]
         public Byte[] GetImage(int idCustomer, string imageType = "")
         {
             return _customerService.GetImage(idCustomer, imageType);
