@@ -1,7 +1,6 @@
 ﻿using System.ServiceModel;
 using Microsoft.Data.SqlClient;
 using NLog;
-using Maxi.BackOffice.CrossCutting.Common.Configurations;
 using Maxi.BackOffice.CrossCutting.Common.Common;
 using Maxi.BackOffice.Agent.Infrastructure.Contracts;
 using Maxi.BackOffice.Agent.Infrastructure.ExternalServices;
@@ -9,34 +8,31 @@ using OrbographWebService;
 using Maxi.BackOffice.Agent.Infrastructure.Entities;
 using Maxi.BackOffice.CrossCutting.Common.SqlServer;
 using Maxi.BackOffice.CrossCutting.Common.Extensions;
-using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer;
+using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.Interfaces;
+using Microsoft.Extensions.Configuration;
 
 namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
 {
     public class OrbographRepository : IOrbographRepository
     {
-        private readonly UnitOfWorkSqlServerAdapter db;
-        private readonly AppCurrentSessionContext session;
-
-        //private string slogFilename = "";
-        //private StringBuilder slog = new StringBuilder(100);
+        private readonly IConfiguration _configuration;
+        private readonly IAplicationContext _dbContext;
+        private readonly IAppCurrentSessionContext _appCurrentSessionContext;
         private static readonly NLog.Logger logger = NLog.LogManager.GetLogger("Orbograph");
         private static bool isLogSetted = false;
 
-
-        public OrbographRepository(UnitOfWorkSqlServerAdapter dbAdapter)
+        public OrbographRepository(IConfiguration configuration, IAplicationContext dbContext, IAppCurrentSessionContext appCurrentSessionContext)
         {
-            this.db = dbAdapter;
-            this.session = dbAdapter.SessionCtx;
+            _configuration = configuration;
+            _dbContext = dbContext;
+            _appCurrentSessionContext = appCurrentSessionContext;
             LogSetup();
         }
-
         private void LogAdd(string level, string msg, params object[] args)
         {
             if (level == "d" || level.IsBlank()) logger.Debug(msg, args);
             if (level == "i") logger.Info(msg, args);
         }
-
         private void LogErr(string msg, Exception ex = null)
         {
             logger.Error(msg);
@@ -44,8 +40,6 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                 logger.Error(ex);
             return;
         }
-
-
         public ValidationResponse ValidateCheck(Byte[] pic, string picName)
         {
             ValidationResponse res;
@@ -58,15 +52,15 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                 LogAdd("i", "-------------------------------");
                 LogAdd("i", "OrbographRepository ValidateCheck");
                 LogAdd("i", "DATOS DE SESION:");
-                LogAdd("i", "{@session}", session);
+                LogAdd("i", "{@session}", _appCurrentSessionContext);
                 LogAdd("i", "");
 
                 var orboclient = new Orbograph();
 
                 //Buscamos credenciales de orbograph
                 LogAdd("d", "busca credenciales en GlobalAttributes");
-                var user = db.GlobalAttr("OrbographUser");
-                var pass = db.GlobalAttr("OrbographPass");
+                var user = _dbContext.GlobalAttr("OrbographUser");
+                var pass = _dbContext.GlobalAttr("OrbographPass");
                 orboclient.Connect(user, pass);
 
                 LogAdd("d", "CreateValidationRequest");
@@ -150,13 +144,11 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
 
             return res;
         }
-
-
-        public OrbographLogEntity DbSaveLog(OrbographLogEntity entity, object data)
+        private OrbographLogEntity DbSaveLog(OrbographLogEntity entity, object data)
         {
             //Usa conexion alternativa para logs en db
             SqlTransaction ltran = null;
-            using (var lconn = new SqlConnection(AppSettings.ConnectionString_DbLogs))
+            using (var lconn = new SqlConnection(_configuration.GetConnectionString("LOGS-D")))
             {
                 lconn.Open();
                 try
@@ -170,8 +162,8 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                         m = new OrbographLogEntity
                         {
                             DateRecord = DateTime.Now,
-                            IdAgent = session.IdAgent,
-                            IdUser = session.IdUser,
+                            IdAgent = _appCurrentSessionContext.IdAgent,
+                            IdUser = _appCurrentSessionContext.IdUser,
                         };
                     }
 
@@ -218,7 +210,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                                 if (res.Reco.Micr.OnusCheck != null)
                                     m.CheckNum = res.Reco.Micr.OnusCheck.Value;
 
-                                if (res.Reco.Micr.Aux != null && res.Reco.Micr.OnusCheck==null)
+                                if (res.Reco.Micr.Aux != null && res.Reco.Micr.OnusCheck == null)
                                     m.CheckNum = res.Reco.Micr.Aux.Value;
                             }
                         }
@@ -234,31 +226,18 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                     ltran.Commit();
                     return m;
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     LogErr("Exception DbSaveLog", ex);
                     if (ltran != null) ltran.Commit(); //forza grabar log
-                    throw; 
+                    throw;
                 }
             }
         }
-
         private void FileSaveLog()
         {
             NLog.LogManager.Flush();
-            
-
-            //if (slogFilename == "")
-            //    slogFilename = IOUtil.AppBaseDirForce("OrboLog") + "OrboLog_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".txt";
-
-            //if (!File.Exists(slogFilename))
-            //    File.WriteAllText(slogFilename, slog.ToString());
-            //else
-            //    File.AppendAllText(slogFilename, slog.ToString());
-
-            //slog.Clear();
         }
-
         private void LogSetup()
         {
             if (isLogSetted) return;
@@ -280,14 +259,13 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
             });
 
             //ver si esto se hace al inicio de cada peticion
-            MappedDiagnosticsLogicalContext.Set("IdAgent", session.IdAgent);
-            MappedDiagnosticsLogicalContext.Set("IdUser", session.IdUser);
-            MappedDiagnosticsLogicalContext.Set("FrontGuid", session.SessionGuid);
+            MappedDiagnosticsLogicalContext.Set("IdAgent", _appCurrentSessionContext.IdAgent);
+            MappedDiagnosticsLogicalContext.Set("IdUser", _appCurrentSessionContext.IdUser);
+            MappedDiagnosticsLogicalContext.Set("FrontGuid", _appCurrentSessionContext.SessionGuid);
 
             isLogSetted = true;
             return;
         }
-
         private Aux_ResponseFieldValue ExtractResponseField(ValidationResponse res, string cual)
         {
             var r = new Aux_ResponseFieldValue();
@@ -304,9 +282,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
             }
             return r;
         }
-
     }
-
 
     class Aux_ResponseFieldValue
     {

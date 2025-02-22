@@ -6,27 +6,25 @@ using System.Threading.Tasks;
 
 using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.Interfaces;
 using Maxi.BackOffice.Agent.Application.Contracts;
+using Maxi.BackOffice.CrossCutting.Common.Common;
 
 
 namespace Maxi.BackOffice.Agent.Application.Services
 {
-    public class CustomerService : CustomServiceBase, ICustomerService
+    public class CustomerService : ICustomerService
     {
-        public CustomerService(IUnitOfWork unitOfWork) : base(unitOfWork)
-        {
+        private readonly IAplicationContext _dbContext;
+        private readonly IAppCurrentSessionContext _appCurrentSessionContext;
 
+        public CustomerService(IAplicationContext dbContext, IAppCurrentSessionContext appCurrentSessionContext)
+        {
+            _dbContext = dbContext;
+            _appCurrentSessionContext = appCurrentSessionContext;
         }
 
-        
         public Byte[] GetImage(int idCustomer, string imageType)
         {
-            using (var context = CreateUnitOfWork())
-            {
-
-                throw new NotImplementedException();
-            }
+            throw new NotImplementedException();
         }
-
-
     }
 }

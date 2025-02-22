@@ -1,20 +1,17 @@
-﻿using Maxi.BackOffice.CrossCutting.Common.Common;
-using Maxi.BackOffice.CrossCutting.Common.SqlServer;
+﻿using Maxi.BackOffice.CrossCutting.Common.SqlServer;
 using Maxi.BackOffice.Agent.Infrastructure.Contracts;
 using Maxi.BackOffice.Agent.Infrastructure.Entities;
-using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer;
+using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.Interfaces;
 
 namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
 {
-    class GlobalAttributesRepository : IGlobalAttributesRepository
+    public class GlobalAttributesRepository : IGlobalAttributesRepository
     {
-        UnitOfWorkSqlServerAdapter db;
-        private readonly AppCurrentSessionContext session;
-
-        public GlobalAttributesRepository(UnitOfWorkSqlServerAdapter uwAdapter)
+        private readonly IAplicationContext _dbContext;
+        
+        public GlobalAttributesRepository(IAplicationContext dbContext)
         {
-            this.db = uwAdapter;
-            this.session = uwAdapter.SessionCtx;
+            _dbContext = dbContext;
         }
 
         public string GetValue(string aName)
@@ -32,16 +29,15 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
             if (r == null) return "";
             return r;
             */
-            
+
             var r = entity.GetByFilter("Name = @Name",
                 new List<SqlParam>
                 {
                     new SqlParam() { Name = "@Name" , Value = aName }
-                }, db.Conn, db.Tran);
+                }, _dbContext.GetConnection(), _dbContext.GetTransaction());
 
             if (r.Count == 0) return "";
             return r.First().Value;
         }
-
     }
 }

@@ -6,7 +6,22 @@ using System.Threading.Tasks;
 
 namespace Maxi.BackOffice.CrossCutting.Common.Common
 {
-    public class AppCurrentSessionContext
+    public interface IAppCurrentSessionContext
+    {
+        string SessionGuid { get; set; }
+        int IdAgent { get; set; }
+        int IdUser { get; set; }
+        string UserName { get; set; }
+        int IdLang { get => ResolveLangId(); }
+        string Culture { get; set; }
+        string PcName { get; set; }
+        string PcIdentifier { get; set; }
+        string PcSerial { get; set; }
+
+        int ResolveLangId();
+    }
+
+    public class AppCurrentSessionContext: IAppCurrentSessionContext
     {
         public string SessionGuid { get; set; }
 
@@ -33,7 +48,7 @@ namespace Maxi.BackOffice.CrossCutting.Common.Common
             UserName = "";
         }
 
-        private int ResolveLangId()
+        public int ResolveLangId()
         {
             int m = 1;
             var s = Culture.ToLower().Trim();

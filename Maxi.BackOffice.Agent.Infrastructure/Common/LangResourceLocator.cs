@@ -9,9 +9,9 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Common
 {
     internal class LangResourceLocator : IDisposable
     {
-        private readonly UnitOfWorkSqlServerAdapter db;
+        private readonly ApplicationContext db;
 
-        public LangResourceLocator(UnitOfWorkSqlServerAdapter dbctx)
+        public LangResourceLocator(ApplicationContext dbctx)
         {
             this.db = dbctx;
         }
@@ -43,7 +43,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Common
             string c = "";
             string s = "";
             if (culture == null) culture = "";
-            var cmd = new SqlCommand(SqlSelectMessageKey(), db.Conn, db.Tran);
+            var cmd = new SqlCommand(SqlSelectMessageKey(), db.GetConnection(), db.Tran);
             cmd.Parameters.AddWithValue("@Key", aKey);
 
             var reader = cmd.ExecuteReader();
@@ -95,7 +95,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Common
             string sFirst = "";
             culture = culture.IsBlank() ? "en-US" : culture;
             
-            var items = db.Conn.Query(SqlSelectMessageKey(), new { Key = msgKey }, db.Tran).ToList();
+            var items = db.GetConnection().Query(SqlSelectMessageKey(), new { Key = msgKey }, db.GetTransaction()).ToList();
 
             foreach (var t in items)
             {

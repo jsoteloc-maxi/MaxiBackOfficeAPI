@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using Maxi.BackOffice.Agent.Infrastructure.Contracts;
+using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.Interfaces;
 using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer;
 using Maxi.BackOffice.CrossCutting.Common.Common;
 
@@ -8,17 +9,14 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
 {
     public class PcParamsRepository : IPcParamsRepository
     {
-        private readonly UnitOfWorkSqlServerAdapter db;
-        private readonly AppCurrentSessionContext session;
+        private readonly IAplicationContext _dbContext;
+        private readonly IAppCurrentSessionContext _appCurrentSessionContext;
 
-
-        public PcParamsRepository(UnitOfWorkSqlServerAdapter ctx)
+        public PcParamsRepository(IAplicationContext dbContext, IAppCurrentSessionContext appCurrentSessionContext)
         {
-            this.db = ctx;
-            this.session = db.SessionCtx;
-
+            _dbContext = dbContext;
+            _appCurrentSessionContext = appCurrentSessionContext;
         }
-
 
         public string GetParam(string ident, string col)
         {
@@ -30,11 +28,10 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
             //sql += " AND AP.IdAgent = @IdAgent  ";
             sql += " ORDER BY PC.IdPcIdentifier  ";
 
-            var r =  db.Conn.ExecuteScalar(sql, new { ident, session.IdAgent }, db.Tran);
+            var r =  _dbContext.GetConnection().ExecuteScalar(sql, new { ident, _appCurrentSessionContext.IdAgent }, _dbContext.GetTransaction());
             if (r != null) val = r.ToString();
             return val;
         }
-
 
         public int SetParam(string ident, string col, string value)
         {
@@ -49,11 +46,8 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
             sql += " WHERE PC.Identifier = @ident  ";
             //sql += " AND AP.IdAgent = @IdAgent  ";
 
-            db.Conn.Execute(sql, new { ident, session.IdAgent, value }, db.Tran);
+            _dbContext.GetConnection().Execute(sql, new { ident, _appCurrentSessionContext.IdAgent, value }, _dbContext.GetTransaction());
             return 0;
         }
-
-
-
     }
 }

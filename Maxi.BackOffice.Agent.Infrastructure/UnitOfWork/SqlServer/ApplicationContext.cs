@@ -1,47 +1,57 @@
-﻿using System.ComponentModel;
-using Microsoft.Data.SqlClient;
-using Dapper;
-using Maxi.BackOffice.CrossCutting.Common.Attributes;
-using Maxi.BackOffice.CrossCutting.Common.Common;
-using Maxi.BackOffice.CrossCutting.Common.Configurations;
-using Maxi.BackOffice.CrossCutting.UnitOfWork.SqlServer;
+﻿using Microsoft.Extensions.Configuration;
 using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.Interfaces;
 using Maxi.BackOffice.Agent.Infrastructure.Common;
-using Maxi.BackOffice.CrossCutting.Common.SqlServer;
+using Maxi.BackOffice.CrossCutting.Common.Attributes;
+using Maxi.BackOffice.CrossCutting.Common.Common;
+using Microsoft.Data.SqlClient;
+using System.ComponentModel;
 using System.Text;
+using Dapper;
 
 namespace Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer
 {
-    public class UnitOfWorkSqlServerAdapter : IUnitOfWorkAdapter
+    public class ApplicationContext : IAplicationContext
     {
+        private readonly IConfiguration _configuration;
+        private readonly IAppCurrentSessionContext _appCurrentSessionContext;
+
         private readonly SqlConnection _conn;
         private readonly SqlTransaction _tran;
-        private readonly AppCurrentSessionContext _seCtx;
-        private IUnitOfWorkRepository _repos;
         private SqlKata.Execution.QueryFactory _QueryFactory;
         private LangResourceLocator _langRes;
 
-        public IUnitOfWorkRepository Repositories => _repos;
+        public SqlConnection Conn => _conn; // JISC TODO ya no debe usarsae esta propiedad directamente
+        public SqlTransaction Tran => _tran; // JISC TODO ya no debe usarsae esta propiedad directamente
 
-
-        public SqlConnection Conn => _conn;
-        public SqlTransaction Tran => _tran;
-        public AppCurrentSessionContext SessionCtx => _seCtx;
-
-
-        public UnitOfWorkSqlServerAdapter(dynamic seCtx)
+        public ApplicationContext(IConfiguration configuration, IAppCurrentSessionContext appCurrentSessionContext)
         {
-            _seCtx = seCtx;
+            _configuration = configuration;
+            _appCurrentSessionContext = appCurrentSessionContext;
 
-            _conn = new SqlConnection(AppSettings.ConnectionStrings(AppSettings.ConexionOperaciones));
+#if DEBUG
+            //_conn = new SqlConnection(configuration.GetConnectionString("OPER-D"));
+            //_conn.Open();
+            //_tran = _conn.BeginTransaction();
+
+            //_QueryFactory = new SqlKata.Execution.QueryFactory(_conn, new SqlKata.Compilers.SqlServerCompiler());
+#else
+            _conn = new SqlConnection(configuration.GetConnectionString("OPER-D"));
             _conn.Open();
             _tran = _conn.BeginTransaction();
 
             _QueryFactory = new SqlKata.Execution.QueryFactory(_conn, new SqlKata.Compilers.SqlServerCompiler());
+#endif
 
-            _repos = new UnitOfWorkSqlServerRepository(this);
         }
 
+        public SqlConnection GetConnection()
+        {
+            return _conn;
+        }
+        public SqlTransaction GetTransaction()
+        {
+            return _tran;
+        }
 
         public void Dispose()
         {
@@ -53,9 +63,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer
                 _conn.Close();
                 _conn.Dispose();
             }
-            _repos = null;
         }
-
 
         public void SaveChanges()
         {
@@ -73,9 +81,9 @@ namespace Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer
         public string LangResource(string key, string def = "")
         {
             if (_langRes == null)
-                _langRes = new LangResourceLocator(this);
+                _langRes = new LangResourceLocator(this); // JISC TODO revisar si no es antipatron usar this para pasar el mismo DBContext
 
-            return _langRes.GetMessage(key, SessionCtx.IdLang, def);
+            return _langRes.GetMessage(key, _appCurrentSessionContext.IdLang, def);
         }
 
         public string GlobalAttr(string name)
@@ -136,10 +144,12 @@ namespace Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer
         {
             var x = new T();
             _SetEntityKeyValue(x, id);
-            return x.GetById(Conn, Tran);
+            // // JISC TODO: REVISAR EL ERROR linea siguiente
+            //return x.GetById(Conn, Tran);
+            return x;
         }
 
-        public List<T> GetEntityByFilter<T>(string filter, object param=null) where T : class, IEntityType, new()
+        public List<T> GetEntityByFilter<T>(string filter, object param = null) where T : class, IEntityType, new()
         {
             var attr = _GetEntityAttributes(typeof(T));
             if (string.IsNullOrWhiteSpace(attr.Schema)) attr.Schema = "dbo";
@@ -157,34 +167,6 @@ namespace Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer
 
             var res = Conn.Query<T>(sql.ToString().Trim(), param, Tran).ToList();
             return res;
-        
-            //var parList = new List<SqlParam>();
-            //parList.Add(new SqlParam { });
-            //return x.GetByFilter(filter, parList, Conn, Tran);
         }
-
-        /*
-         UpdateById ( entity, campos,  id)
-
-         UpdateById ( entity, "campo1, campo2, campo3 ",  id)
-
-         UpdateById ( entity, new{ entity.campo1, entity.campo2 },  id)
-
-         UpdateById ( entity, new{ entity.campo1, entity.campo2 },  "filtro", new{ })
-
-        */
-
-
-        //public static TValue GetAttributeValue<TAttribute, TValue>(Type type, Func<TAttribute, TValue> valueSelector)
-        //{
-        //    var att = (TAttribute)type.GetCustomAttributes(typeof(TAttribute), true).FirstOrDefault();
-
-        //    if (att != null)
-        //    {
-        //        return valueSelector(att);
-        //    }
-        //    return default(TValue);
-        //}
-
     }
 }

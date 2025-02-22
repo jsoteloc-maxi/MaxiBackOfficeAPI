@@ -4,9 +4,9 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
 {
     public class PruebasRepository
     {
-        private readonly UnitOfWorkSqlServerAdapter db;
+        private readonly ApplicationContext db;
 
-        public PruebasRepository(UnitOfWorkSqlServerAdapter dbAdapter)
+        public PruebasRepository(ApplicationContext dbAdapter)
         {
             db = dbAdapter;
         }

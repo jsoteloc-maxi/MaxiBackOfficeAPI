@@ -4,51 +4,31 @@ using Maxi.BackOffice.Agent.Infrastructure.Contracts;
 using Maxi.BackOffice.Agent.Infrastructure.Entities;
 using Maxi.BackOffice.Agent.Domain.Model;
 using Maxi.BackOffice.CrossCutting.Common.Extensions;
-using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer;
-using Maxi.BackOffice.CrossCutting.Common.Configurations;
 using Dapper;
+using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.Interfaces;
+using Microsoft.Extensions.Configuration;
 
 namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
 {
 
     public class CheckRepository : ICheckRepository
     {
-        private readonly UnitOfWorkSqlServerAdapter db;
+        private readonly IConfiguration _configuration;
+        private readonly IAplicationContext _dbContext;
+        private readonly IAppCurrentSessionContext _appCurrentSessionContext;
 
-        private readonly AppCurrentSessionContext session;
-        //private readonly DbContextObjects db;
-        //private readonly SqlConnection connection;
-        //private readonly SqlTransaction transaction;
 
-        //private readonly CCAgFeeCommResEntity entity;
-
-        //public CheckRepository(DbContextObjects dbCtx, AppCurrentSessionContext seCtx)
-        public CheckRepository(UnitOfWorkSqlServerAdapter ctx)
+        public CheckRepository(IConfiguration configuration, IAplicationContext dbContext, IAppCurrentSessionContext appCurrentSessionContext)
         {
-            this.db = ctx;
-            this.session = db.SessionCtx;
-            //connection = db.Conn;
-            //transaction = db.Tran;
-
-            //this.db = dbCtx;
-            //this.session = seCtx;
-            //connection = db.conn;
-            //transaction = db.tran;
+            _configuration = configuration;
+            _dbContext = dbContext;
+            _appCurrentSessionContext = appCurrentSessionContext;
         }
+
 
         public CCAgFeeCommResEntity GetCCAgFeeComm(int IdAgente, decimal CheckAmount, int State)
         {
-            //CCAgFeeCommResEntity entity = new CCAgFeeCommResEntity();
-
-            //return entity.GetQuery("EXEC sp_CC_GetAgentFees @IdAgente,@CheckAmount,@State",
-            //    new List<SqlParam>
-            //    {
-            //        new SqlParam() { Name ="@IdAgente" , Value= IdAgente },
-            //        new SqlParam() { Name ="@CheckAmount" , Value= CheckAmount },
-            //        new SqlParam() { Name ="@State" ,Value=  State },
-            //    }, connection, transaction).FirstOrDefault();
-
-            return db.Conn.Query<CCAgFeeCommResEntity>(
+            return _dbContext.GetConnection().Query<CCAgFeeCommResEntity>(
                 "EXEC sp_CC_GetAgentFees @IdAgente, @CheckAmount, @State ",
                 new
                 {
@@ -56,18 +36,16 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                     CheckAmount = CheckAmount,
                     State = State,
                 },
-                db.Tran).FirstOrDefault();
+                _dbContext.GetTransaction()).FirstOrDefault();
         }
-
-
         public CC_GetMakerByAccEntity GetMakerByAcc(string routing, string account)
         {
             var result = new CC_GetMakerByAccEntity();
 
-            dynamic r = db.Conn.Query(
+            dynamic r = _dbContext.GetConnection().Query(
                 "SELECT TOP 1 * FROM dbo.IssuerChecks WITH(NOLOCK) WHERE RoutingNumber=@routing AND AccountNumber=@account " +
                 "ORDER BY IdIssuer DESC",
-                new { routing, account }, db.Tran).FirstOrDefault();
+                new { routing, account }, _dbContext.GetTransaction()).FirstOrDefault();
 
             if (r != null)
             {
@@ -81,7 +59,12 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
 
             return result;
         }
-
+        /// <summary>
+        /// DEPRECATED
+        /// </summary>
+        /// <param name="RoutingNum"></param>
+        /// <param name="AccountNum"></param>
+        /// <returns></returns>
         public List<CC_GetMakerByAccEntity> GetMakerByAcc(int RoutingNum, long AccountNum)
         {
             CC_GetMakerByAccEntity entity = new CC_GetMakerByAccEntity();
@@ -94,51 +77,48 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                 {
                     new SqlParam() { Name ="@RoutingNum" , Value= RoutingNum },
                     new SqlParam() { Name ="@AccountNum" , Value= AccountNum }
-                }, db.Conn, db.Tran);
+                }, _dbContext.GetConnection(), _dbContext.GetTransaction());
         }
-
         public List<CC_CheckTypeEntity> GetAllCheckTypes()
         {
             var entity = new CC_CheckTypeEntity();
             //return entity.GetAll(connection, transaction);
-            return entity.GetByFilter("", new List<SqlParam> { }, db.Conn, db.Tran);
+            return entity.GetByFilter("", new List<SqlParam> { }, _dbContext.GetConnection(), _dbContext.GetTransaction());
         }
-
         public List<CC_CheckCompanyFilter> GetAllWordFilter()
         {
             var entity = new CC_CheckCompanyFilter();
             //return entity.GetAll(connection, transaction);
-            return entity.GetByFilter("", new List<SqlParam> { }, db.Conn, db.Tran);
+            return entity.GetByFilter("", new List<SqlParam> { }, _dbContext.GetConnection(), _dbContext.GetTransaction());
         }
-
-
         public List<SpCC_GetCautionNotesEntity> GetCautionNotes(string rout, string acc, string checkNum)
         {
             //Todo: ver si esta rutina deberia regresar on objeto AccountValidationInfo o AccountCautionNotes
             //ya que en realidad regresara toda la info de notas de maxi y giact e informacion de header
             //como BankName, ValidationDate etc
-            
+
             var maker = GetMakerByAcc(rout, acc);
             var IdIssuer = maker.Maker_ID;
+            string commandTimeOutParam = _configuration.GetSection("AppSettings")["CommandTimeoutBySQLServer"] ?? "0";
 
-            var rows = db.Conn.Query<SpCC_GetCautionNotesEntity>(
+            var rows = _dbContext.GetConnection().Query<SpCC_GetCautionNotesEntity>(
                 "EXEC dbo.sp_CC_GetCautionNotes @rout, @acc, @IdIssuer, @checkNum ",
-                new { rout, acc, IdIssuer, checkNum  },
-                db.Tran,true,Convert.ToInt32(AppSettings.CommandTimeout)).ToList();
+                new { rout, acc, IdIssuer, checkNum },
+                _dbContext.GetTransaction(), true, Convert.ToInt32(commandTimeOutParam)).ToList();
 
             //-------------------
             #region Extrae notas recientes de giact
             if (IdIssuer > 0)
             {
                 //asegurar que el issuer este bien asignado
-                db.Conn.Execute(
+                _dbContext.GetConnection().Execute(
                 " UPDATE CC_AccVerifByAg SET IdIssuer = @IdIssuer" +
                 " WHERE Routing=@rout AND Account=@acc AND (IdIssuer IS NULL OR IdIssuer=0)",
-                new { IdIssuer, rout, acc }, db.Tran);
+                new { IdIssuer, rout, acc }, _dbContext.GetTransaction());
 
 
                 //Extraer notas recientes de giact
-                var json = db.Conn.Query(@"
+                var json = _dbContext.GetConnection().Query(@"
                     SELECT TOP 1 D.ResponseJSON, [ReviewDate]=CAST(V.DateCreated AS DATE)
                     FROM dbo.CC_AccVerifByAg V WITH(NOLOCK)
                     JOIN MAXILOG.dbo.GiactServiceLog D WITH(NOLOCK) ON (D.Id = V.IdLog)
@@ -146,7 +126,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                     AND CAST(V.DateCreated AS DATE) >= CAST(DATEADD(dd,-3,GETDATE()) AS DATE)
                     ORDER BY IdAccVerifByAg DESC
                     ",
-                    new { IdIssuer }, db.Tran).FirstOrDefault();
+                    new { IdIssuer }, _dbContext.GetTransaction()).FirstOrDefault();
                 if (json != null)
                 {
                     GiactResult verif = ConvertTo.FromJSON<GiactResult>(json.ResponseJSON);
@@ -183,22 +163,21 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                 n.SourceText = "MAXI";
 
                 if (!n.Source.IsBlank() && !n.Source.EqualText("MAXI"))
-                    n.SourceText = db.LangResource("ValidationService");
+                    n.SourceText = _dbContext.LangResource("ValidationService");
 
-                n.Text = db.LangResource(n.Text);
+                n.Text = _dbContext.LangResource(n.Text);
             }
 
             return rows;
         }
-
         public SpCC_GetAccountCheckSummaryEntity GetAccountCheckSummary(string rout, string acc)
         {
-            
+
             return
-                db.Conn.Query<SpCC_GetAccountCheckSummaryEntity>(
+                _dbContext.GetConnection().Query<SpCC_GetAccountCheckSummaryEntity>(
                 "EXEC dbo.sp_CC_GetAccountCheckSummary @RoutingNum=@R, @AccountNum=@A, @Idlang=@L",
-                new { R=rout, A=acc, L=session.IdLang },
-                db.Tran).FirstOrDefault();
+                new { R = rout, A = acc, L = _appCurrentSessionContext.IdLang },
+                _dbContext.GetTransaction()).FirstOrDefault();
 
             //var entity = new SpCC_GetAccountCheckSummaryEntity();
 
@@ -210,22 +189,14 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
             //        new SqlParam() { Name ="@AccountNum" , Value= acc }
             //    }, connection, transaction).FirstOrDefault();
         }
-
         public List<CC_IssuerActionCheck> GetIssuerAction(int idIssuer)
         {
-
-
-            var rows = db.Conn.Query<CC_IssuerActionCheck>(
+            var rows = _dbContext.GetConnection().Query<CC_IssuerActionCheck>(
               "EXEC dbo.st_VerifyDenyIssuers @IdIssuer ",
               new { idIssuer },
-              db.Tran).ToList();
-
+              _dbContext.GetTransaction()).ToList();
             return rows;
-
-     
         }
-
-
         string SqlRecentChecks(string kind)
         {
             var filtro = "CH.IdIssuer = @IdIssuer";
@@ -259,11 +230,10 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
             ORDER BY CH.IdCheck DESC";
             return sql;
         }
-                
         public dynamic GetRecentChecksByCustomer(int idCustomer)
         {
             var sql = SqlRecentChecks("customer");
-            return db.Conn.Query(sql, new { IdCustomer = idCustomer }, db.Tran);
+            return _dbContext.GetConnection().Query(sql, new { IdCustomer = idCustomer }, _dbContext.GetTransaction());
         }
         public dynamic GetRecentChecksByCustomer(int idCustomer, DateTime? startDate, DateTime? endDate, bool? paged, int? offset, int? limit, string sortColumn = null, string sortOrder = null)
         {
@@ -305,19 +275,18 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
             }
             if (result.Error.Count > 0)
                 return result;
-            var rows = db.Conn.QueryMultiple(
+            var rows = _dbContext.GetConnection().QueryMultiple(
              "EXEC dbo.st_GetCheckHistorybyIdCustomer @IdCustomer, @StarDate, @EndDate, @Paged, @Offset,@Limit,@sortColumn, @sortOrder",
-             new { IdCustomer = idCustomer, StarDate = startDate, EndDate = endDate, Paged = paged, Offset = offset, Limit = limit, SortColumn = sortColumn, SortOrder = sortOrder  },
-             db.Tran);
+             new { IdCustomer = idCustomer, StarDate = startDate, EndDate = endDate, Paged = paged, Offset = offset, Limit = limit, SortColumn = sortColumn, SortOrder = sortOrder },
+             _dbContext.GetTransaction());
             result.Data = (List<CheckTiny>)rows.Read<CheckTiny>();
             result.Pagination = rows.Read<Pagination>().FirstOrDefault();
             return result;
         }
-
         public dynamic GetRecentChecksByIssuer(int idIssuer)
         {
             var sql = SqlRecentChecks("issuer");
-            return db.Conn.Query(sql, new { IdIssuer = idIssuer }, db.Tran);
+            return _dbContext.GetConnection().Query(sql, new { IdIssuer = idIssuer }, _dbContext.GetTransaction());
         }
         public dynamic GetRecentChecksByIssuer(int idIssuer, DateTime? startDate, DateTime? endDate, bool? paged, int? offset, int? limit, string sortColumn = null, string sortOrder = null)
         {
@@ -335,7 +304,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                     case "STATUS":
                         break;
                     case "DATE":
-                        break;                    
+                        break;
                     default:
                         result.Error.Add(new ErrorDto { Code = "2", Description = "The SortColumn parameter must be Status, Date" });
                         break;
@@ -358,25 +327,23 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
             }
             if (result.Error.Count > 0)
                 return result;
-            var rows = db.Conn.QueryMultiple(
+            var rows = _dbContext.GetConnection().QueryMultiple(
              "EXEC dbo.st_GetCheckHistorybyIdIssuer @IdIssuer, @StarDate, @EndDate, @Paged, @Offset,@Limit,@SortColumn,@SortOrder",
-             new { IdIssuer = idIssuer, StarDate = startDate, EndDate = endDate, Paged = paged, Offset = offset, Limit = limit, SortColumn= sortColumn, SortOrder = sortOrder },
-             db.Tran);
-            result.Data = (List<CheckTiny>)rows.Read<CheckTiny>(); 
+             new { IdIssuer = idIssuer, StarDate = startDate, EndDate = endDate, Paged = paged, Offset = offset, Limit = limit, SortColumn = sortColumn, SortOrder = sortOrder },
+             _dbContext.GetTransaction());
+            result.Data = (List<CheckTiny>)rows.Read<CheckTiny>();
             result.Pagination = rows.Read<Pagination>().FirstOrDefault();
             return result;
         }
-
-
         public dynamic GetChecksProcessedReport(DateTime date1, DateTime date2, string custName, string checkNum)
         {
-            int idAgent = session.IdAgent;
+            int idAgent = _appCurrentSessionContext.IdAgent;
             //idAgent = 1242; //test debug
 
-            dynamic rows = db.Conn.Query(
+            dynamic rows = _dbContext.GetConnection().Query(
                 "EXEC dbo.sp_CC_GetChecksProcessed @date1, @date2, @idAgent, @custName, @checkNum",
                 new { date1, date2, idAgent, custName, checkNum },
-                db.Tran);
+                _dbContext.GetTransaction());
 
             return rows;
 
@@ -390,39 +357,36 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
             //}
             //return n;
         }
-
-
         public dynamic GetChecksRejectedReport(DateTime date1, DateTime date2, string custName, string checkNum, string printed)
         {
-            int idAgent = session.IdAgent;
+            int idAgent = _appCurrentSessionContext.IdAgent;
             //idAgent = 1242; //test debug
 
             if (printed.IsBlank()) printed = "2"; //todos
 
-            dynamic rows = db.Conn.Query(
+            dynamic rows = _dbContext.GetConnection().Query(
                 "EXEC dbo.sp_CC_GetChecksRejected @date1, @date2, @idAgent, @custName, @checkNum, @printed",
                 new { date1, date2, idAgent, custName, checkNum, printed },
-                db.Tran);
+                _dbContext.GetTransaction());
 
             return rows;
         }
-
         public dynamic GetCheckEditedElements(int idCheck)
         {
-            dynamic rows = db.Conn.Query("SELECT * FROM CheckEdits WITH(NOLOCK) WHERE IdCheck = @idCheck", new { idCheck }, db.Tran);
+            dynamic rows = _dbContext.GetConnection().Query("SELECT * FROM CheckEdits WITH(NOLOCK) WHERE IdCheck = @idCheck", new { idCheck }, _dbContext.GetTransaction());
             return rows;
         }
-
+        
         /*07-Sep-2021*/
         /*UCF*/
         /*TSI_MAXI_013*/
         /*Realiza una busqueda en la tabla de cheques con las columnas CheckNumber, RoutingNumber y Account, hace un count con el resultado, si es mayor a 0, retorna true, de lo contrario returna false*/
-        public dynamic GetCheckByMircData(String ChNum, String RoutNum, String AccNum) 
+        public dynamic GetCheckByMircData(String ChNum, String RoutNum, String AccNum)
         {
-            dynamic result = db.Conn.Query(
+            dynamic result = _dbContext.GetConnection().Query(
                 "EXEC dbo.sp_CC_GetCheckByMircData @ChNum, @RoutNum, @AccNum",
                 new { ChNum, RoutNum, AccNum },
-                db.Tran);
+                _dbContext.GetTransaction());
             return result;
         }
     }

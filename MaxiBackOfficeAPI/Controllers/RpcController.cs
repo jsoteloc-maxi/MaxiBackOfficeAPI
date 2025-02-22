@@ -1,21 +1,35 @@
 ﻿using Maxi.BackOffice.Agent.Application.Contracts;
 using Maxi.BackOffice.Agent.Domain.Model;
+using Maxi.BackOffice.CrossCutting.Common.Common;
 using MaxiBackOfficeAPI.Middleware;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using System.Net;
 
 namespace MaxiBackOfficeAPI.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/[controller]")]
     public class RpcController : ControllerBase
     {
         private IRpcService _rpcService;
+        private readonly IAppCurrentSessionContext _appCurrentSessionContext;
 
-        public RpcController(IRpcService rpcService)
+        public RpcController(IRpcService rpcService, IAppCurrentSessionContext appCurrentSessionContext)
         {
             _rpcService = rpcService;
+            _appCurrentSessionContext = appCurrentSessionContext;
+        }
+
+        [HttpGet("healthcheck")]
+        //[AllowAnonymous]
+        [ProducesResponseType((int)HttpStatusCode.OK)]
+        [ProducesResponseType((int)HttpStatusCode.BadRequest)]
+        public IActionResult HealthCheck()
+        {
+            return Ok(new { Success = true, Message = "Application is working!!" });
         }
 
         /// <summary>
@@ -225,13 +239,7 @@ namespace MaxiBackOfficeAPI.Controllers
                 Check = chk,
             };
 
-            // ahora 
-            var appCurrentSessionContext = HttpContext.Items["appCurrentSessionContext"] as AppCurrentSessionContext;
-            if (appCurrentSessionContext != null && appCurrentSessionContext.IdAgent == 0)
-            {
-                appCurrentSessionContext.IdAgent = 1242;
-                HttpContext.Items["appCurrentSessionContext"] = appCurrentSessionContext;
-            }
+            _appCurrentSessionContext.IdAgent = _appCurrentSessionContext.IdAgent == 0 ? 1242 : _appCurrentSessionContext.IdAgent;
 
             return Ok(_rpcService.GiactValidation(req));
         }

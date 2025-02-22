@@ -1,23 +1,46 @@
 using Maxi.BackOffice.Agent.Domain.Model;
-using Maxi.BackOffice.Agent.Infrastructure.ExternalServices;
 using OrbographWebService;
-using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.Interfaces;
 using Maxi.BackOffice.Agent.Infrastructure.Mappings;
 using Maxi.BackOffice.Agent.Infrastructure.Entities;
 using Maxi.BackOffice.Agent.Application.Contracts;
 using Maxi.BackOffice.CrossCutting.Common.Extensions;
 using Maxi.BackOffice.Agent.Infrastructure.Common;
 using Maxi.BackOffice.CrossCutting.Enums;
+using Maxi.BackOffice.Agent.Infrastructure.Contracts;
+using Maxi.BackOffice.CrossCutting.Common.Common;
 
 namespace Maxi.BackOffice.Agent.Application.Services
 {
-    public class RpcService : CustomServiceBase, IRpcService
+    public class RpcService : IRpcService
     {
+        private readonly IAppCurrentSessionContext _appCurrentSessionContext;
+        private readonly ICheckRepository _checkRepository;
+        private readonly IOrbographRepository _orbographRepository;
+        private readonly IGlobalAttributesRepository _globalAttributesRepository;
+        private readonly IGiactServiceLogRepository _giactServiceLogRepository;
+        //private readonly IIrdRepository _irdRepository;
+        private readonly IPcParamsRepository _pcParamsRepository;
+        private readonly ICheckImagePendingRepository _checkImagePendingRepository;
 
-        public RpcService(IUnitOfWork unitOfWork) : base(unitOfWork)
+        public RpcService(
+            IAppCurrentSessionContext appCurrentSessionContext,
+            ICheckRepository checkRepository,
+            IOrbographRepository orbographRepository,
+            IGlobalAttributesRepository globalAttributesRepository,
+            IGiactServiceLogRepository giactServiceLogRepository,
+            //IIrdRepository irdRepository,
+            IPcParamsRepository pcParamsRepository,
+            ICheckImagePendingRepository checkImagePendingRepository)
         {
+            _appCurrentSessionContext = appCurrentSessionContext;
+            _checkRepository = checkRepository;
+            _orbographRepository = orbographRepository;
+            _globalAttributesRepository = globalAttributesRepository;
+            _giactServiceLogRepository = giactServiceLogRepository;
+            //_irdRepository = irdRepository;
+            _pcParamsRepository = pcParamsRepository;
+            _checkImagePendingRepository = checkImagePendingRepository;
         }
-
 
         MaxiItemInfo IRpcService.GetItemInfo(ObjetoRequestItem aReq)
         {
@@ -25,64 +48,45 @@ namespace Maxi.BackOffice.Agent.Application.Services
             var vlItemInfo = new MaxiItemInfo();
             vlItemInfo.CheckCanBeProcessed = "OK";
 
-            //Crear ValidateCheckRequest
-            //ValidateCheckResult ver si se crea este modelo para reemplazar MaxiItemInfo
-            /*
-            //simula result
-            m.FileName = filename;
-            m.Micr = "es el micr";
-            m.Payer = "es el maker";
-            m.Maker.Nombre = "Nombre de Maker";
-            return m;
-            */
-
             #region Llamada Orbograph
-            using (var context = CreateUnitOfWork())
+            try
             {
-                try
+                var orboRes = _orbographRepository.ValidateCheck(aReq.ImageBytes, aReq.ImageName);
+                if (orboRes.Reco.ErrorCode == 1000)
                 {
-                    var orboRes = context.Repositories.OrboRepository.ValidateCheck(aReq.ImageBytes, aReq.ImageName);
-                    if (orboRes.Reco.ErrorCode == 1000)
-                    {
-                        OrboAssignResult(orboRes, ref vlItemInfo, context, aReq.Metodo);
-
-                        //if (string.IsNullOrWhiteSpace(vlItemInfo.Micr))
-                        //    lerror = "Invalid check image";
-                    }
-                    else
-                        lerror = "ErrorCode " + orboRes.Reco.ErrorCode.ToString();
+                    OrboAssignResult(orboRes, ref vlItemInfo, aReq.Metodo);
                 }
-                catch (Exception ex)
+                else
+                    lerror = "ErrorCode " + orboRes.Reco.ErrorCode.ToString();
+            }
+            catch (Exception ex)
+            {
+                lerror = ExtractExceptionMessage(ex);
+                lerror = lerror.Substring(0, Math.Min(200, lerror.Length));
+            }
+            //llamar funcionalidad para guardar imagenes y generar guid de identificacion 
+
+            if (aReq.Metodo == "BATCH")
+            {
+                vlItemInfo.IdImage = Guid.NewGuid();
+
+                ImageManager imageManager = new ImageManager(_globalAttributesRepository.GetValue("BatchImgPath"));
+                imageManager.SaveImage(aReq.IdcheckImagePending, aReq.ImageBytes, aReq.ImageBytesRear, vlItemInfo.IdImage);
+            }
+
+            if (lerror != "")
+                vlItemInfo.AccCautionNotes.Add("INFO", "OCR: " + lerror, "Orbo");
+
+            //Si hay datos de routing => busca directo en base el issuer
+            if (!vlItemInfo.RoutingNum.IsBlank() && !vlItemInfo.AccountNum.IsBlank())
+            {
+                var issuer = CC_GetMakerByAccResMapper.Map(_checkRepository.GetMakerByAcc(vlItemInfo.RoutingNum, vlItemInfo.AccountNum));
+                if (issuer != null && issuer.Maker_ID > 0)
                 {
-                    lerror = ExtractExceptionMessage(ex);
-                    lerror = lerror.Substring(0, Math.Min(200, lerror.Length));
+                    vlItemInfo.Maker.IdMaker = issuer.Maker_ID;
+                    vlItemInfo.Maker.MakerName = issuer.MAK_Name;
                 }
-                //llamar funcionalidad para guardar imagenes y generar guid de identificacion 
-
-                if (aReq.Metodo == "BATCH")
-                {
-                    vlItemInfo.IdImage = Guid.NewGuid();
-
-                    ImageManager imageManager = new ImageManager(context.Repositories.GlobalAttributesRepository.GetValue("BatchImgPath"));
-                    imageManager.SaveImage(aReq.IdcheckImagePending, aReq.ImageBytes, aReq.ImageBytesRear, vlItemInfo.IdImage);
-
-                }
-
-                if (lerror != "")
-                    vlItemInfo.AccCautionNotes.Add("INFO", "OCR: " + lerror, "Orbo");
-
-                //Si hay datos de routing => busca directo en base el issuer
-                if (!vlItemInfo.RoutingNum.IsBlank() && !vlItemInfo.AccountNum.IsBlank())
-                {
-                    var issuer = CC_GetMakerByAccResMapper.Map(context.Repositories.CheckRepository.GetMakerByAcc(vlItemInfo.RoutingNum, vlItemInfo.AccountNum));
-                    if (issuer != null && issuer.Maker_ID > 0)
-                    {
-                        vlItemInfo.Maker.IdMaker = issuer.Maker_ID;
-                        vlItemInfo.Maker.MakerName = issuer.MAK_Name;
-                    }
-                }
-
-            }//using context
+            }
             #endregion
 
             try
@@ -122,7 +126,7 @@ namespace Maxi.BackOffice.Agent.Application.Services
 
             //using (var context = CreateUnitOfWork())
             //{
-            //    var r = context.Repositories.CheckRepository.GetAllWordFilter();
+            //    var r = _checkRepository.GetAllWordFilter();
             //    // bool palabra = r.Exists(it => vlItemInfo.Customer.CustName.Contains(it.Word));
             //    foreach (var info in r)
             //    {
@@ -142,22 +146,14 @@ namespace Maxi.BackOffice.Agent.Application.Services
             {
                 if (vlItemInfo.Customer.CustName != "" && vlItemInfo.Customer.CustName != " " && vlItemInfo.Customer.CustName != null)
                 {
-                    using (var context = CreateUnitOfWork())
+                    var r = _checkRepository.GetAllWordFilter();
+                    string[] words = vlItemInfo.Customer.CustName.Split(' ');
+
+                    foreach (var info in r)
                     {
-                        var r = context.Repositories.CheckRepository.GetAllWordFilter();
-                        string[] words = vlItemInfo.Customer.CustName.Split(' ');
-
-                        foreach (var info in r)
-                        {
-
-                            vlItemInfo.IsCompanyCheck = words.Any(it => it.Equals(info.Word, StringComparison.OrdinalIgnoreCase));
-
-                            if (vlItemInfo.IsCompanyCheck == true)
-                            {
-                              
-                                break;
-                            }
-                        }
+                        vlItemInfo.IsCompanyCheck = words.Any(it => it.Equals(info.Word, StringComparison.OrdinalIgnoreCase));
+                        if (vlItemInfo.IsCompanyCheck == true)
+                            break;
                     }
                 }
             }
@@ -166,7 +162,7 @@ namespace Maxi.BackOffice.Agent.Application.Services
                 vlItemInfo.IsCompanyCheck = false;
             }
 
-           
+
 
             return vlItemInfo;
         }
@@ -174,65 +170,39 @@ namespace Maxi.BackOffice.Agent.Application.Services
 
         CCAgFeeCommRes IRpcService.GetAgFeeCommInfo(int idAgent, decimal amount, int idState)
         {
-            using (var context = CreateUnitOfWork())
-            {
-                var r = context.Repositories.CheckRepository.GetCCAgFeeComm(idAgent, amount, idState);
-                CCAgFeeCommRes fee = CCAgFeeCommResMapper.Map(r);
-                return fee;
-            }
+            var r = _checkRepository.GetCCAgFeeComm(idAgent, amount, idState);
+            CCAgFeeCommRes fee = CCAgFeeCommResMapper.Map(r);
+            return fee;
         }
 
 
         CC_GetMakerByAccRes IRpcService.GetMakerByAcc(string rout, string acc)
         {
-            using (var context = CreateUnitOfWork())
-            {
-                var r = context.Repositories.CheckRepository.GetMakerByAcc(rout, acc);
-                return CustomMapperBase<CC_GetMakerByAccRes, CC_GetMakerByAccEntity>.Map(r);
-            }
+            var r = _checkRepository.GetMakerByAcc(rout, acc);
+            return CustomMapperBase<CC_GetMakerByAccRes, CC_GetMakerByAccEntity>.Map(r);
         }
 
 
         GiactResult IRpcService.GiactValidation(GiactInquiry request)
         {
-            using (var context = CreateUnitOfWork())
-            {
-                var giactRepo = context.Repositories.GiactServiceLogRepository;
-                var res = giactRepo.ValidateCheck(request);
-
-
-                //aqui hay que pasar el resultado a un AccountValidationInfo
-
-                //AccountValidationInfo
-                //AccountValidationResult
-                //AccVerificationResult
-                //AccountVerificationInfo
-
-
-                return res;
-            }
+            var res = _giactServiceLogRepository.ValidateCheck(request);
+            return res;
         }
 
 
         //-------------------------------------------
         public List<CheckType> GetCheckTypesList()
         {
-            using (var context = CreateUnitOfWork())
-            {
-                var r = context.Repositories.CheckRepository.GetAllCheckTypes();
-                return CustomMapperBase<CheckType, CC_CheckTypeEntity>.Map(r);
-            }
+            var r = _checkRepository.GetAllCheckTypes();
+            return CustomMapperBase<CheckType, CC_CheckTypeEntity>.Map(r);
         }
 
-
-
-
-        private void OrboAssignResult(ValidationResponse orboRes, ref MaxiItemInfo prmItem, IUnitOfWorkAdapter context, String method)
+        private void OrboAssignResult(ValidationResponse orboRes, ref MaxiItemInfo prmItem, String method)
         {
             try
             {
                 //Requerimiento Maxi-014 validacion de Firma
-                int CC_SignatureScore = Convert.ToInt32(context.Repositories.GlobalAttributesRepository.GetValue("CC_SignatureScore"));
+                int CC_SignatureScore = Convert.ToInt32(_globalAttributesRepository.GetValue("CC_SignatureScore"));
                 var signatureOrboResult = orboRes.TestResult.TestResults.Find(x => x.Type == ValidationType.Signature);
                 if (signatureOrboResult.Result == ValidationResultType.Passed && signatureOrboResult.Score >= CC_SignatureScore &&
                     signatureOrboResult.ReasonCode == ErrorCodes.ErrorOk)
@@ -306,7 +276,7 @@ namespace Maxi.BackOffice.Agent.Application.Services
 
 
                 int car_score = 0;
-                int.TryParse(context.Repositories.GlobalAttributesRepository.GetValue("AmountScore_ForDisplay"), out int car_score_max);
+                int.TryParse(_globalAttributesRepository.GetValue("AmountScore_ForDisplay"), out int car_score_max);
                 if (car_score_max <= 0)
                     car_score_max = 30;
 
@@ -365,7 +335,7 @@ namespace Maxi.BackOffice.Agent.Application.Services
                         if (method.EqualText("BATCH"))
                         {
                             int score_date = 0;
-                            int.TryParse(context.Repositories.GlobalAttributesRepository.GetValue("ScoreDate"), out score_date);
+                            int.TryParse(_globalAttributesRepository.GetValue("ScoreDate"), out score_date);
                             if (ResponseField.Score > score_date)
                                 if (DateTime.TryParse(ResponseField.Result, out var checkDate))
                                     prmItem.CheckDate = checkDate;
@@ -427,43 +397,22 @@ namespace Maxi.BackOffice.Agent.Application.Services
 
         public AccountCheckSummary GetAccountCheckSummary(string rout, string acc)
         {
-            //var r = new AccountCheckSummary();
-            //r.TotalChecksProcessed = 10;
-            //r.TotalChecksRejected = 3;
-            //r.LastRejectionDate = DateTime.Now;
-            //r.LastRejectionReason = "CUENTA CERRADA";
-            //return r;
-
-            using (var context = CreateUnitOfWork())
-            {
-                var r = context.Repositories.CheckRepository.GetAccountCheckSummary(rout, acc);
-                return CustomMapperBase<AccountCheckSummary, SpCC_GetAccountCheckSummaryEntity>.Map(r);
-            }
-
+            var r = _checkRepository.GetAccountCheckSummary(rout, acc);
+            return CustomMapperBase<AccountCheckSummary, SpCC_GetAccountCheckSummaryEntity>.Map(r);
         }
 
         public List<IssuerActionCheck> GetIssuerAction(int idIssuer)
         {
-     
-
-            using (var context = CreateUnitOfWork())
-            {
-                var r = context.Repositories.CheckRepository.GetIssuerAction(idIssuer);
-                return CustomMapperBase<IssuerActionCheck, CC_IssuerActionCheck>.Map(r);
-            }
-
+            var r = _checkRepository.GetIssuerAction(idIssuer);
+            return CustomMapperBase<IssuerActionCheck, CC_IssuerActionCheck>.Map(r);
         }
 
 
         public AccountCautionNotes GetAccountCautionNotes(string rout, string acc, string checkNum)// Aqui se debe de validar el Routing number con la tabla de routing number bloqueados
         {
             var r = new AccountCautionNotes();
-            using (var context = CreateUnitOfWork())
-            {
-                var n = context.Repositories.CheckRepository.GetCautionNotes(rout, acc, checkNum);
-                r.Notes.AddRange(CustomMapperBase<AccountCautionNote, SpCC_GetCautionNotesEntity>.Map(n));
-            }
-
+            var n = _checkRepository.GetCautionNotes(rout, acc, checkNum);
+            r.Notes.AddRange(CustomMapperBase<AccountCautionNote, SpCC_GetCautionNotesEntity>.Map(n));
             r.SortNotes();
             return r;
         }
@@ -471,22 +420,10 @@ namespace Maxi.BackOffice.Agent.Application.Services
 
         public AccountCautionNotes GetAccountVerificationInfo(string rout, string acc)
         {
-            //va a reemplazar la llamada GetAccountCautionNotes
-
             var r = new AccountCautionNotes();
-
             //Manda buscar notas
-            using (var context = CreateUnitOfWork())
-            {
-                //Hacer consulta giact
-
-                //Obtener ultimo resultado
-
-
-                var n = context.Repositories.CheckRepository.GetCautionNotes(rout, acc, "");
-                r.Notes.AddRange(CustomMapperBase<AccountCautionNote, SpCC_GetCautionNotesEntity>.Map(n));
-            }
-
+            var n = _checkRepository.GetCautionNotes(rout, acc, "");
+            r.Notes.AddRange(CustomMapperBase<AccountCautionNote, SpCC_GetCautionNotesEntity>.Map(n));
             r.SortNotes();
             return r;
         }
@@ -504,135 +441,98 @@ namespace Maxi.BackOffice.Agent.Application.Services
 
         public List<CheckTiny> GetRecentChecksByCustomer(int idCustomer)
         {
-            using (var context = CreateUnitOfWork())
-            {
-                var r = context.Repositories.CheckRepository.GetRecentChecksByCustomer(idCustomer);
-                return CustomMapper.Map<List<CheckTiny>>(r);
-            }
+            var r = _checkRepository.GetRecentChecksByCustomer(idCustomer);
+            return CustomMapper.Map<List<CheckTiny>>(r);
         }
         public PaginationResponse<List<CheckTiny>> GetRecentChecksByCustomer(int idIssuer, DateTime? startDate, DateTime? endDate, bool? paged, int? offset, int? limit, string sortColumn = null, string sortOrder = null)
         {
             PaginationResponse<List<CheckTiny>> response = new PaginationResponse<List<CheckTiny>>();
-            using (var context = CreateUnitOfWork())
-            {
-                return context.Repositories.CheckRepository.GetRecentChecksByCustomer(idIssuer, startDate, endDate, paged, offset, limit,sortColumn,sortOrder);
-            }
+            return _checkRepository.GetRecentChecksByCustomer(idIssuer, startDate, endDate, paged, offset, limit, sortColumn, sortOrder);
         }
 
         public List<CheckTiny> GetRecentChecksByIssuer(int idIssuer)
         {
-            using (var context = CreateUnitOfWork())
-            {
-                var r = context.Repositories.CheckRepository.GetRecentChecksByIssuer(idIssuer);
-                return CustomMapper.Map<List<CheckTiny>>(r);
-            }
+            var r = _checkRepository.GetRecentChecksByIssuer(idIssuer);
+            return CustomMapper.Map<List<CheckTiny>>(r);
         }
 
-        public PaginationResponse<List<CheckTiny>> GetRecentChecksByIssuer(int idCustomer, DateTime? startDate, DateTime? endDate, bool? paged, int? offset, int? limit,string sortColumn=null, string sortOrden=null)
+        public PaginationResponse<List<CheckTiny>> GetRecentChecksByIssuer(int idCustomer, DateTime? startDate, DateTime? endDate, bool? paged, int? offset, int? limit, string sortColumn = null, string sortOrden = null)
         {
             PaginationResponse<List<CheckTiny>> response = new PaginationResponse<List<CheckTiny>>();
-
-            //Validar el parametro SortColumn
-
-            using (var context = CreateUnitOfWork())
-            {
-                return context.Repositories.CheckRepository.GetRecentChecksByIssuer(idCustomer, startDate, endDate, paged, offset, limit,sortColumn,sortOrden);
-            }
+            return _checkRepository.GetRecentChecksByIssuer(idCustomer, startDate, endDate, paged, offset, limit, sortColumn, sortOrden);
         }
 
         public List<CheckTiny> GetChecksProcessedReport(DateTime date1, DateTime date2, string custName, string checkNum)
         {
-            using (var context = CreateUnitOfWork())
-            {
-                var repo = context.Repositories.CheckRepository;
-                var r = repo.GetChecksProcessedReport(date1, date2, custName, checkNum);
-                return CustomMapper.Map<List<CheckTiny>>(r);
-            }
+            var r = _checkRepository.GetChecksProcessedReport(date1, date2, custName, checkNum);
+            return CustomMapper.Map<List<CheckTiny>>(r);
         }
 
 
         public List<CheckTiny> GetChecksRejectedReport(DateTime date1, DateTime date2, string custName, string checkNum, string printed)
         {
-            using (var context = CreateUnitOfWork())
-            {
-                var repo = context.Repositories.CheckRepository;
-                var r = repo.GetChecksRejectedReport(date1, date2, custName, checkNum, printed);
-                return CustomMapper.Map<List<CheckTiny>>(r);
-            }
+            var r = _checkRepository.GetChecksRejectedReport(date1, date2, custName, checkNum, printed);
+            return CustomMapper.Map<List<CheckTiny>>(r);
         }
-
-
 
         public IRDResponse GetCheckIRD(int idCheck, string docType)
         {
             IRDResponse result = null;
-            var logoFile = AppDomain.CurrentDomain.BaseDirectory + @"\Assets\Logo256.bmp";
+            // JISC TODO: REVISAR EL ERROR
+            //var logoFile = AppDomain.CurrentDomain.BaseDirectory + @"\Assets\Logo256.bmp";
 
-            using (var context = CreateUnitOfWork())
-            {
-                var repo = context.Repositories.IrdRepository;
+            //if (docType.ToUpper() == "PDF")
+            //{
+            //    var m = _irdRepository.ObtenerImpresionIRD(idCheck, logoFile);
+            //    result = CustomMapper.Map<IRDResponse>(m);
+            //    result.DocType = "PDF";
+            //}
 
-                if (docType.ToUpper() == "PDF")
-                {
-                    var m = repo.ObtenerImpresionIRD(idCheck, logoFile);
-                    result = CustomMapper.Map<IRDResponse>(m);
-                    result.DocType = "PDF";
-                }
+            //if (docType.ToUpper() == "REPPARAMS")
+            //{
+            //    var m = _irdRepository.ObtenerImpresionIRDParams(idCheck, logoFile);
+            //    result = CustomMapper.Map<IRDResponse>(m);
+            //    result.DocType = "REPPARAMS";
+            //}
 
-                if (docType.ToUpper() == "REPPARAMS")
-                {
-                    var m = repo.ObtenerImpresionIRDParams(idCheck, logoFile);
-                    result = CustomMapper.Map<IRDResponse>(m);
-                    result.DocType = "REPPARAMS";
-                }
+            //if (docType.ToUpper() == "VIEWREPROCESS")
+            //{
+            //    var m = _irdRepository.ObtenerImagenesIRD(idCheck, false, false);
+            //    result = CustomMapper.Map<IRDResponse>(m);
+            //    result.DocType = "TIF";
+            //}
 
-                if (docType.ToUpper() == "VIEWREPROCESS")
-                {
-                    var m = repo.ObtenerImagenesIRD(idCheck, false, false);
-                    result = CustomMapper.Map<IRDResponse>(m);
-                    result.DocType = "TIF";
-                }
+            //if (result == null)
+            //{
+            //    var m = _irdRepository.ObtenerImagenesIRD(idCheck);
+            //    result = CustomMapper.Map<IRDResponse>(m);
+            //    result.DocType = "TIF";
+            //}
 
-                if (result == null)
-                {
-                    var m = repo.ObtenerImagenesIRD(idCheck);
-                    result = CustomMapper.Map<IRDResponse>(m);
-                    result.DocType = "TIF";
-                }
-
-                context.SaveChanges();
-                return result;
-            }
+            // JISC TODO revisar context.SaveChanges();
+            //context.SaveChanges();
+            return result;
         }
 
 
         public string GetPcParam(string ident, string col)
         {
-            using (var uw = CreateUnitOfWork())
-            {
-                return uw.Repositories.PcParamsRepository.GetParam(ident, col);
-            }
+            return _pcParamsRepository.GetParam(ident, col);
         }
 
 
         public int SetPcParam(string ident, string col, string value)
         {
-            using (var uw = CreateUnitOfWork())
-            {
-                var r = uw.Repositories.PcParamsRepository.SetParam(ident, col, value);
-                uw.SaveChanges();
-                return r;
-            }
+            var r = _pcParamsRepository.SetParam(ident, col, value);
+            // JISC TODO revisar SaveChanges()
+            //uw.SaveChanges();
+            return r;
         }
 
         public List<CheckElementEdited> GetCheckEditedElements(int idCheck)
         {
-            using (var context = CreateUnitOfWork())
-            {
-                var repo = context.Repositories.CheckRepository;
-                var r = repo.GetCheckEditedElements(idCheck);
-                return CustomMapper.Map<List<CheckElementEdited>>(r);
-            }
+            var r = _checkRepository.GetCheckEditedElements(idCheck);
+            return CustomMapper.Map<List<CheckElementEdited>>(r);
         }
 
         /*07-Sep-2021*/
@@ -641,103 +541,80 @@ namespace Maxi.BackOffice.Agent.Application.Services
         /*Llama al repositorio y retorna true/false dependiendo del resultado de la ejecucion de GetCheckByMircData*/
         public CheckTiny GetCheckByMircData(string ChNum, string RoutNum, string AccNum)
         {
-            using (var context = CreateUnitOfWork())
-            {
-                var repo = context.Repositories.CheckRepository;
-                List<CheckTiny> r = CustomMapper.Map<List<CheckTiny>>(repo.GetCheckByMircData(ChNum, RoutNum, AccNum)); ;
-                return r.FirstOrDefault();
-            }
+            List<CheckTiny> r = CustomMapper.Map<List<CheckTiny>>(_checkRepository.GetCheckByMircData(ChNum, RoutNum, AccNum)); ;
+            return r.FirstOrDefault();
         }
 
         public int SetIdcheckImagePending()
         {
-            using (var contex = CreateUnitOfWork())
-            {
-                var result = contex.Repositories.CheckImagePendingRepository.Insert(new CheckImagePendingEntity()).IdcheckImagePending;
-                return result;
-            }
-
+            var result = _checkImagePendingRepository.Insert(new CheckImagePendingEntity()).IdcheckImagePending;
+            return result;
         }
 
         public int CheckImageProcessed(int id, List<UploadCheck> uploadChecks)
         {
-            using (var contex = CreateUnitOfWork())
-            {
-                UploadChecks(uploadChecks);
-                var result = contex.Repositories.CheckImagePendingRepository.ChecImageProcessed(id);
-                //ImageManager imageManager = new ImageManager(contex.Repositories.GlobalAttributesRepository.GetValue("BatchImgPath"));
-                //imageManager.DeleteById(id);
-                return result;
-            }
-
+            UploadChecks(uploadChecks);
+            var result = _checkImagePendingRepository.ChecImageProcessed(id);
+            return result;
         }
 
         public void UploadChecks(List<UploadCheck> uploadChecks)
         {
-            using (var context = CreateUnitOfWork())
+            List<UploadFileDto> fileDto = new List<UploadFileDto>();
+            ImageManager imageManager = new ImageManager(_globalAttributesRepository.GetValue("BatchImgPath"));
+            string directory = _globalAttributesRepository.GetValue("ChecksPath");
+            List<string> guidName = new List<string>();
+
+            foreach (var check in uploadChecks)
             {
-                List<UploadFileDto> fileDto = new List<UploadFileDto>();
-                ImageManager imageManager = new ImageManager(context.Repositories.GlobalAttributesRepository.GetValue("BatchImgPath"));
-                string directory = context.Repositories.GlobalAttributesRepository.GetValue("ChecksPath");
-                List<string> guidName = new List<string>();
+                guidName = new List<string>();
+                guidName.AddRange(
+                imageManager.MoveImage(check.IdCheckPendingImage, check.IdImage, directory + "\\" + check.IdIssuer.ToString() + "\\Checks" + "\\" + check.IdCheck.ToString() + "\\"
+                    , directory + "\\" + check.IdIssuer.ToString() + "\\Checks" + "\\" + check.IdCheck.ToString()));
 
-                foreach (var check in uploadChecks)
+                foreach (var item in guidName)
                 {
-                    guidName = new List<string>();
-                    guidName.AddRange(
-                    imageManager.MoveImage(check.IdCheckPendingImage, check.IdImage, directory + "\\" + check.IdIssuer.ToString() + "\\Checks" + "\\" + check.IdCheck.ToString() + "\\"
-                        , directory + "\\" + check.IdIssuer.ToString()+ "\\Checks" + "\\" + check.IdCheck.ToString()));
-
-                    foreach (var item in guidName)
+                    //idtypedocument 69 es para cheques  en el nombre del archivo se tiene que concatenar un 1 o 2 para diferenciar entre frontal y trasera
+                    fileDto.Add(new UploadFileDto()
                     {
-                        //idtypedocument 69 es para cheques  en el nombre del archivo se tiene que concatenar un 1 o 2 para diferenciar entre frontal y trasera
-                        fileDto.Add(new UploadFileDto()
-                        {
-                            IdReference = check.IdCheck,
-                            Extension = ".tif",
-                            FileGuid = item.Split('_')[0],
-                            FileName = item.Split('_')[0],
-                            IdStatus = 1,
-                            IdUser = SessionCtx.IdUser,
-                            IdDocumentType =(int)eDocumentType.Check,
-                            ExpirationDate = null,
-                            idImgType = Convert.ToInt32(item.Split('_')[1]),
-                            IdCountry = null,
-                            IdState = null
-                        });
-                    }
+                        IdReference = check.IdCheck,
+                        Extension = ".tif",
+                        FileGuid = item.Split('_')[0],
+                        FileName = item.Split('_')[0],
+                        IdStatus = 1,
+                        IdUser = _appCurrentSessionContext.IdUser,
+                        IdDocumentType = (int)eDocumentType.Check,
+                        ExpirationDate = null,
+                        idImgType = Convert.ToInt32(item.Split('_')[1]),
+                        IdCountry = null,
+                        IdState = null
+                    });
                 }
-
-                if (fileDto.Count > 0)
-                {
-                    context.Repositories.CheckImagePendingRepository.UploadImage(fileDto);
-                }
-
             }
 
+            if (fileDto.Count > 0)
+            {
+                _checkImagePendingRepository.UploadImage(fileDto);
+            }
         }
 
         public int DeleteCheckByIdCheckPending(int Id)
         {
             try
             {
-                using (var contex = CreateUnitOfWork())
+                var current = _checkImagePendingRepository.GetById(Id);
+                if (current.ProcessingDate <= DateTime.MinValue)
                 {
-                    var current = contex.Repositories.CheckImagePendingRepository.GetById(Id);
-                    if (current.ProcessingDate <= DateTime.MinValue)
-                    {
-                        ImageManager imageManager = new ImageManager(contex.Repositories.GlobalAttributesRepository.GetValue("BatchImgPath"));
-                        imageManager.DeleteById(Id);
-                        contex.SaveChanges();
-                    }
+                    ImageManager imageManager = new ImageManager(_globalAttributesRepository.GetValue("BatchImgPath"));
+                    imageManager.DeleteById(Id);
+                    // JISC TODO: revisar SaveChanges()
+                    //contex.SaveChanges();
                 }
             }
             catch (Exception ex)
             {
                 return 0;
             }
-
-
             return 1;
         }
     }

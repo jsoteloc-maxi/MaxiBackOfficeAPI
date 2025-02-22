@@ -3,20 +3,20 @@ using Maxi.BackOffice.CrossCutting.Common.SqlServer;
 using Maxi.BackOffice.Agent.Infrastructure.Entities;
 using Maxi.BackOffice.Agent.Infrastructure.Contracts;
 using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer;
+using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.Interfaces;
 
 namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
 {
     public class CC_AgFeesRepository : ICC_AgFeesRepository
     {
-        private readonly UnitOfWorkSqlServerAdapter db;
-        // 
-        private readonly AppCurrentSessionContext session;
+        private readonly IAplicationContext _dbContext;
+        private readonly IAppCurrentSessionContext _appCurrentSessionContext;
         public CC_AgFeesEntity entity;
 
-        public CC_AgFeesRepository(UnitOfWorkSqlServerAdapter dbAdapter)
+        public CC_AgFeesRepository(IAplicationContext dbContext, IAppCurrentSessionContext appCurrentSessionContext)
         {
-            db = dbAdapter;
-            session = dbAdapter.SessionCtx;
+            _dbContext = dbContext;
+            _appCurrentSessionContext = appCurrentSessionContext;
             entity = new CC_AgFeesEntity();
         }
 
@@ -24,14 +24,14 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
         public CC_AgFeesEntity Insert(CC_AgFeesEntity row)
         {
             //row.ACF_DateCreated = DateTime.Now;
-            row.IdAgCustFee = row.Insert( db.Conn, db.Tran);
+            row.IdAgCustFee = row.Insert( _dbContext.GetConnection(), _dbContext.GetTransaction());
             return row;
         }
 
         
         public int Update(CC_AgFeesEntity row)
         {
-            return row.Update(db.Conn, db.Tran);
+            return row.Update(_dbContext.GetConnection(), _dbContext.GetTransaction());
         }
         
         /*
@@ -43,7 +43,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
         public int Delete(int id)
         {
             entity.IdAgCustFee = id;
-            return entity.Delete(db.Conn, db.Tran);
+            return entity.Delete(_dbContext.GetConnection(), _dbContext.GetTransaction());
         }
 
         /*
@@ -55,7 +55,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
         public CC_AgFeesEntity GetById(int id)
         {
             entity.IdAgCustFee = id;
-            return entity.GetById(db.Conn, db.Tran);
+            return entity.GetById(_dbContext.GetConnection(), _dbContext.GetTransaction());
         }
 
 
@@ -67,7 +67,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                 {
                     new SqlParam(){ Name="@IdAgent", Value=idAgent}
                 },
-                db.Conn, db.Tran);
+                _dbContext.GetConnection(), _dbContext.GetTransaction());
         }
 
     }

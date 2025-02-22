@@ -1,13 +1,14 @@
-﻿using System;
+﻿using Microsoft.Data.SqlClient;
+using System;
+using System.Drawing;
 
 namespace Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.Interfaces
 {
-    public interface IUnitOfWorkAdapter:IDisposable
+    public interface IAplicationContext : IDisposable
     {
-        IUnitOfWorkRepository Repositories { get; }
-
+        SqlConnection GetConnection();
+        SqlTransaction GetTransaction();
         void SaveChanges();
-
         string LangResource(string key, string def = "");
         string GlobalAttr(string name);
     }

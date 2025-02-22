@@ -3,7 +3,7 @@
 
 namespace Maxi.BackOffice.Agent.Application.Contracts
 {
-    public interface IAgCustFeesService : ICustomServiceBase
+    public interface IAgCustFeesService
     {
         List<AgCustFeesModel> GetAll(int agent);
         AgCustFeesModel GetById(int id);

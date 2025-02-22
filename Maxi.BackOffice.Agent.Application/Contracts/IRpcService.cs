@@ -4,7 +4,7 @@ using Maxi.BackOffice.Agent.Infrastructure.Entities;
 
 namespace Maxi.BackOffice.Agent.Application.Contracts
 {
-    public interface IRpcService : ICustomServiceBase
+    public interface IRpcService
     {
         GiactResult GiactValidation(GiactInquiry request);
         MaxiItemInfo GetItemInfo(ObjetoRequestItem aReq);

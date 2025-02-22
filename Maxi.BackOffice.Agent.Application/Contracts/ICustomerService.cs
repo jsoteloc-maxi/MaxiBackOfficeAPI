@@ -8,7 +8,7 @@ using Maxi.BackOffice.Agent.Domain.Model;
 
 namespace Maxi.BackOffice.Agent.Application.Contracts
 {
-    public interface ICustomerService : ICustomServiceBase
+    public interface ICustomerService
     {
         Byte[] GetImage(int idCustomer, string imageType);
     }

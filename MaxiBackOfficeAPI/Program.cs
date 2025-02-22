@@ -1,8 +1,11 @@
 
 using Maxi.BackOffice.Agent.Application.Contracts;
 using Maxi.BackOffice.Agent.Application.Services;
+using Maxi.BackOffice.Agent.Infrastructure.Contracts;
+using Maxi.BackOffice.Agent.Infrastructure.Repositories;
 using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.Interfaces;
 using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer;
+using Maxi.BackOffice.CrossCutting.Common.Common;
 using MaxiBackOfficeAPI.ExceptionHandler;
 using MaxiBackOfficeAPI.MessageHandler;
 using MaxiBackOfficeAPI.Middleware;
@@ -55,8 +58,8 @@ namespace MaxiBackOfficeAPI
                 //});
 
                 // Agrega authenticación configurada para JwtBearer
-                var jwtSettings = builder.Configuration.GetSection("Jwt");
-                var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
+                var jwtSettings = builder.Configuration.GetSection("JWT");
+                var key = Encoding.UTF8.GetBytes(jwtSettings["Secret"]!);
                 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
                 {
@@ -88,11 +91,29 @@ namespace MaxiBackOfficeAPI
                 // Registrar el LogRequestResponseHandler como un servicio
                 builder.Services.AddTransient<LogRequestResponseHandler>();
 
-                builder.Services.AddSingleton<IUnitOfWork, UnitOfWorkSqlServer>();
-                builder.Services.AddSingleton<IApiLoginService, ApiLoginService>();
-                builder.Services.AddSingleton<IRpcService, RpcService>();
-                builder.Services.AddSingleton<IAgCustFeesService, AgCustFeesService>();
-                builder.Services.AddSingleton<ICustomerService, CustomerService>();
+                /// Configuración DbContext en un EF Core
+                /// Agregar DbContext con la conexión desde appsettings.json
+                // builder.Services.AddDbContext<ApplicationDbContext>(options =>
+                //    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+                builder.Services.AddScoped<IAplicationContext, ApplicationContext>();
+
+                // Sesión context para obtener los datos de los headers en cada request
+                builder.Services.AddScoped<IAppCurrentSessionContext, AppCurrentSessionContext>();
+
+                // Inyección de repositorios
+                builder.Services.AddScoped<ICheckRepository, CheckRepository>();
+                builder.Services.AddScoped<IGiactServiceLogRepository, GiactServiceLogRepository>();
+                builder.Services.AddScoped<IGlobalAttributesRepository, GlobalAttributesRepository>();
+                builder.Services.AddScoped<ICC_AgFeesRepository, CC_AgFeesRepository>();
+                builder.Services.AddScoped<IOrbographRepository, OrbographRepository>();
+                //builder.Services.AddScoped<IIrdRepository, IrdRepository>();
+                builder.Services.AddScoped<IPcParamsRepository, PcParamsRepository>();
+                builder.Services.AddScoped<ICheckImagePendingRepository, CheckImagePendingRepository>();
+
+                // Inyección de servicios
+                builder.Services.AddScoped<IRpcService, RpcService>();
+                builder.Services.AddScoped<IAgCustFeesService, AgCustFeesService>();
+                builder.Services.AddScoped<ICustomerService, CustomerService>();
                 #endregion
 
                 builder.Logging.ClearProviders();
@@ -118,10 +139,10 @@ namespace MaxiBackOfficeAPI
                 app.UseExceptionHandler();
                 app.UseAuthentication(); // Habilita autenticación (JWT, OAuth, etc.)
                 app.UseAuthorization(); // Habilita autorización (roles, claims, políticas)
-                                        //app.UseCors("DefaultPolicy"); // Habilita CORS si está configurado}
-                                        //app.UseRouting(); // Habilita el enrutamiento de las solicitudes HTTP
-                                        // Configura el middleware para session context desde los headers
-                app.UseMiddleware<HeaderMiddleware>();
+                // app.UseCors("DefaultPolicy"); // Habilita CORS si está configurado}
+                // app.UseRouting(); // Habilita el enrutamiento de las solicitudes HTTP
+                // Configura el middleware para session context desde los headers
+                //app.UseMiddleware<SessionContextMiddleware>();
                 // Configurar el middleware para enrutamiento
                 app.MapControllers();
                 #endregion

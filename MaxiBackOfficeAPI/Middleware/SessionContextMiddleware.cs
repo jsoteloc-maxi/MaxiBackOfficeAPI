@@ -1,19 +1,20 @@
-﻿using System.Net.Http.Headers;
+﻿using Maxi.BackOffice.CrossCutting.Common.Common;
 
 namespace MaxiBackOfficeAPI.Middleware
 {
-    public class HeaderMiddleware
+    /// <summary>
+    /// DEPRECATED
+    /// </summary>
+    public class SessionContextMiddleware
     {
         private readonly RequestDelegate _next;
-        public HeaderMiddleware(RequestDelegate next)
+        public SessionContextMiddleware(RequestDelegate next)
         {
             _next = next;
         }
 
-        public async Task InvokeAsync(HttpContext context)
+        public async Task InvokeAsync(HttpContext context, IAppCurrentSessionContext appCurrentSessionContext)
         {
-            var appCurrentSessionContext = new AppCurrentSessionContext();
-
             appCurrentSessionContext.IdAgent = 
                 context.Request.Headers.TryGetValue("X-IdAgent", out var headerIdAgent) ? 
                 Convert.ToInt32(headerIdAgent.ToString()) : 0;
@@ -40,7 +41,8 @@ namespace MaxiBackOfficeAPI.Middleware
                 headerPcIdentifier.ToString() : string.Empty;
 
 
-            context.Items["AppCurrentSessionContext"] = appCurrentSessionContext;
+            // JISC TODO: ya no se utiliza AppCurrentSessionContext en el context ya que se uso DI
+            //context.Items["AppCurrentSessionContext"] = appCurrentSessionContext;
 
             //if (context.Request.Headers.TryGetValue("X-IdAgent", out var headerValue))
             //{

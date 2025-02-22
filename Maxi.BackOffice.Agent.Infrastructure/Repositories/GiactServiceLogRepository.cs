@@ -9,14 +9,17 @@ using Maxi.BackOffice.Agent.Infrastructure.ExternalServices;
 using Maxi.BackOffice.Agent.Domain.Model;
 using Maxi.BackOffice.CrossCutting.Common.Extensions;
 using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer;
+using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.Interfaces;
+using Microsoft.Extensions.Configuration;
+using AutoMapper.Configuration.Annotations;
 
 namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
 {
     public class GiactServiceLogRepository : IGiactServiceLogRepository
     {
-        private readonly UnitOfWorkSqlServerAdapter db;
-        //private readonly DbContextObjects db;
-        private readonly AppCurrentSessionContext session;
+        private readonly IConfiguration _configuration;
+        private readonly IAplicationContext _dbContext;
+        private readonly IAppCurrentSessionContext _appCurrentSessionContext;
 
         //private string slogFilename = "";
         //private readonly StringBuilder slog = new StringBuilder(100);
@@ -24,16 +27,11 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
         private static bool isLogSetted = false;
 
         //public GiactServiceLogRepository(DbContextObjects dbCtx, AppCurrentSessionContext seCtx)
-        public GiactServiceLogRepository(UnitOfWorkSqlServerAdapter db)
+        public GiactServiceLogRepository(IConfiguration configuration, IAplicationContext dbContext, IAppCurrentSessionContext appCurrentSessionContext)
         {
-            this.db = db;
-            this.session = db.SessionCtx;
-
-            //ctx.LangResource();
-            //dbctx.save
-
-            //this.db = dbCtx;
-            //this.session = seCtx;
+            _configuration = configuration;
+            _dbContext = dbContext;
+            _appCurrentSessionContext = appCurrentSessionContext;
             LogSetup();
         }
 
@@ -42,9 +40,9 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
             if (isLogSetted) return;
 
             //ver si esto se hace al inicio de cada peticion
-            NLog.MappedDiagnosticsLogicalContext.Set("IdAgent", session.IdAgent);
-            NLog.MappedDiagnosticsLogicalContext.Set("IdUser", session.IdUser);
-            NLog.MappedDiagnosticsLogicalContext.Set("FrontGuid", session.SessionGuid);
+            NLog.MappedDiagnosticsLogicalContext.Set("IdAgent", _appCurrentSessionContext.IdAgent);
+            NLog.MappedDiagnosticsLogicalContext.Set("IdUser", _appCurrentSessionContext.IdUser);
+            NLog.MappedDiagnosticsLogicalContext.Set("FrontGuid", _appCurrentSessionContext.SessionGuid);
 
             isLogSetted = true;
             return;
@@ -74,7 +72,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                 LogAdd("i", "-------------------------------");
                 LogAdd("i", "Giact ValidateCheck");
                 LogAdd("i", "DATOS DE SESION:");
-                LogAdd("i", "{@session}", db.SessionCtx);
+                LogAdd("i", "{@session}", _appCurrentSessionContext);
                 LogAdd("i", "");
 
                 //Obtener Fee a cobrar por esta verificacion
@@ -82,23 +80,23 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                 var fee = new FeeChecksEntity();
                 fee = fee.GetByFilter("IdAgent=@IdAgent", new List<SqlParam>
                 {
-                    new SqlParam{ Name="@IdAgent", Value=session.IdAgent }
+                    new SqlParam{ Name="@IdAgent", Value=_appCurrentSessionContext.IdAgent }
                 },
-                db.Conn, db.Tran).FirstOrDefault();
+                _dbContext.GetConnection(), _dbContext.GetTransaction()).FirstOrDefault();
 
                 if (fee == null)
                 {
                     fee = new FeeChecksEntity();
                     fee.TransactionFee = 0;
                 }
-                //var fee = db.conn.Query<decimal>("SELECT TransactionFee FROM FeeChecks WHERE IdAgent = @IdAgent", new { session.IdAgent }, db.tran).firs;
+                //var fee = db.conn.Query<decimal>("SELECT TransactionFee FROM FeeChecks WHERE IdAgent = @IdAgent", new { _appCurrentSessionContext.IdAgent }, db.tran).firs;
 
                 //if (fee.TransactionFee <= 0)
                 //{
                 //    //fee.TransactionFee = 5;
                 //    throw new Exception("no hay verification fee configurado para este agente");
                 //}
-                    
+
 
                 //Asigna un guid por cada peticion
                 request.UniqueId = Guid.NewGuid().ToString();
@@ -115,7 +113,9 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
 
                 //llama webservice
                 LogAdd("d", "llama WS de Giact");
-                var proxy = new Giact(AppSettings.GiactApiUsername, AppSettings.GiactApiPassword, GiactApiType.SOAP);
+                var giactApiUsername = _configuration.GetSection("AppSettings")["GiactApiUsername"];
+                var giactApiPassword = _configuration.GetSection("AppSettings")["GiactApiPassword"];
+                var proxy = new Giact(giactApiUsername,giactApiPassword, GiactApiType.SOAP);
                 result = proxy.GetAccInfo(request);
 
                 LogAdd("i", "RESPONSE:");
@@ -125,7 +125,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                 if (result == null)
                     throw new Exception("Giact Response is null");
 
-                if(result.VerificationResponse.EqualText("Error"))
+                if (result.VerificationResponse.EqualText("Error"))
                     throw new Exception(result.ErrorMessage);
 
                 LogAdd("i", "DbSaveLog Response");
@@ -137,8 +137,8 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                     Routing = request.Check.RoutingNumber,
                     Account = request.Check.AccountNumber,
                     CheckNum = request.Check.CheckNumber,
-                    IdAgent = session.IdAgent,
-                    IdUser = session.IdUser,
+                    IdAgent = _appCurrentSessionContext.IdAgent,
+                    IdUser = _appCurrentSessionContext.IdUser,
                     IdLog = logRow.Id,
                     Provider = "Giact",
                     VerificationFee = fee.TransactionFee
@@ -148,8 +148,8 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
 
                 foreach (var n in result.Notes)
                 {
-                    n.SourceText = db.LangResource("ValidationService");
-                    n.Text = db.LangResource(n.TextTag,"  ");
+                    n.SourceText = _dbContext.LangResource("ValidationService");
+                    n.Text = _dbContext.LangResource(n.TextTag, "  ");
                 }
             }
             catch (Exception ex)
@@ -172,7 +172,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
             //Usa conexion alterna para asegurar que siempre grabe
             int id;
             SqlTransaction ltran = null;
-            using (var lconn = new SqlConnection(AppSettings.ConnectionString_DbOper))
+            using (var lconn = new SqlConnection(_configuration.GetConnectionString("OPER-D")))
             {
                 lconn.Open();
                 try
@@ -187,7 +187,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                         }, ltran).FirstOrDefault();
 
                     m.DateCreated = DateTime.Now;
-                    m.IdIssuer = maker!=null ? maker.Maker_ID : 0;
+                    m.IdIssuer = maker != null ? maker.Maker_ID : 0;
                     id = m.Insert(lconn, ltran);
                     ltran.Commit();
 
@@ -199,7 +199,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                         {
                             @MovType = "CHVF",
                             @Id = id,
-                            session.IdUser
+                            _appCurrentSessionContext.IdUser
                         }, ltran);
                         ltran.Commit();
                     }
@@ -210,7 +210,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
 
                     return id;
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     LogErr("Exception SaveSuccessResult", ex);
                     if (ltran != null) ltran.Rollback();
@@ -228,7 +228,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
         {
             //Usa conexion alternativa para logs en db
             SqlTransaction ltran = null;
-            using (var lconn = new SqlConnection(AppSettings.ConnectionString_DbLogs))
+            using (var lconn = new SqlConnection(_configuration.GetConnectionString("LOGS-D")))
             {
                 lconn.Open();
                 try
@@ -242,8 +242,8 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                         m = new GiactServiceLogEntity
                         {
                             DateRecord = DateTime.Now,
-                            IdAgent = session.IdAgent,
-                            IdUser = session.IdUser,
+                            IdAgent = _appCurrentSessionContext.IdAgent,
+                            IdUser = _appCurrentSessionContext.IdUser,
                             RequestJSON = "",
                             ResponseJSON = "",
                         };
@@ -278,7 +278,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                         //ver si esto se puede mejorar o separar
                         //lconn.Execute(
                         //    @"UPDATE MAXI.dbo.Agent SET IdLogAccVerif = @Id  WHERE IdAgent = @IdAgent",
-                        //    new { m.Id, session.IdAgent }, ltran);
+                        //    new { m.Id, _appCurrentSessionContext.IdAgent }, ltran);
                     }
                     else
                         m.Update(lconn, ltran);
@@ -294,16 +294,5 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
                 }
             }
         }
-
-
-        //private GiactResult DummyGetAccInfo()
-        //{
-        //    var r = new GiactResult();
-        //    r.VerificationResponse = new GiactVerificationResponse();
-        //    r.VerificationResponse.Value
-        //    return r;
-        //}
-
-
     }
 }
