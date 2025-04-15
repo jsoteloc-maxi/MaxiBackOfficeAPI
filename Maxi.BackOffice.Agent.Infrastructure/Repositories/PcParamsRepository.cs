@@ -47,6 +47,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
             //sql += " AND AP.IdAgent = @IdAgent  ";
 
             _dbContext.GetConnection().Execute(sql, new { ident, _appCurrentSessionContext.IdAgent, value }, _dbContext.GetTransaction());
+            _dbContext.SaveChanges();
             return 0;
         }
     }

@@ -338,11 +338,15 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
         public dynamic GetChecksProcessedReport(DateTime date1, DateTime date2, string custName, string checkNum)
         {
             int idAgent = _appCurrentSessionContext.IdAgent;
-            //idAgent = 1242; //test debug
+#if DEBUG
+            idAgent = 1242; //test debug
+#endif
+            bool paged = false, summary = false;
+            int offset = 0, limit = 0;
 
             dynamic rows = _dbContext.GetConnection().Query(
-                "EXEC dbo.sp_CC_GetChecksProcessed @date1, @date2, @idAgent, @custName, @checkNum",
-                new { date1, date2, idAgent, custName, checkNum },
+                "EXEC dbo.sp_CC_GetChecksProcessed @date1, @date2, @idAgent, @custName, @checkNum, @summary, @paged, @offset, @limit",
+                new { date1, date2, idAgent, custName, checkNum, summary, paged, offset, limit },
                 _dbContext.GetTransaction());
 
             return rows;
@@ -357,6 +361,58 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
             //}
             //return n;
         }
+
+        public dynamic GetChecksProcessedReport(DateTime? date1, DateTime? date2, bool? paged, bool? summary, int? limit, int? offset, string custName, string checkNum)
+        {
+            CheckTinyAndSummary cs = new CheckTinyAndSummary();
+            cs.CheckTinyRecords = new List<CheckTiny>();
+            cs.Summary = summary == true ? new CheckProccesedSummary() : null;
+            PaginationResponse<CheckTinyAndSummary> result = new PaginationResponse<CheckTinyAndSummary>();
+            result.Error = new List<ErrorDto>();
+
+            try
+            {
+                // valida los campos de fecha
+                if ((date1 != null && date2 != null) && (date1 > date2))
+                    result.Error.Add(new ErrorDto { Code = "1", Description = "The StartDate parameter must be less than the EndDate parameter" });
+
+                // valida que el offset no supere el maximo permitido
+                if (offset > 100)
+                    result.Error.Add(new ErrorDto { Code = "2", Description = "The value of offset is greater than the maximum allowed; max value = 100 records." });
+
+                // asigna a 0 el valor de offset si es null
+                offset = offset ?? 0;
+
+                if (result.Error.Count > 0)
+                    return result;
+
+                int idAgent = _appCurrentSessionContext.IdAgent;
+                //idAgent = 1242;
+
+                dynamic rows = _dbContext.GetConnection().QueryMultiple(
+                    "EXEC dbo.sp_CC_GetChecksProcessed @date1, @date2, @idAgent, @custName, @checkNum, @summary, @paged, @offset, @limit",
+                    new { date1, date2, idAgent, custName, checkNum, summary, paged, offset, limit },
+                    _dbContext.GetTransaction());
+                cs.CheckTinyRecords = (List<CheckTiny>)rows.Read<CheckTiny>();
+                if (paged == true)
+                {
+                    IEnumerable<Pagination> paginationConfig = rows.Read<Pagination>();
+                    result.Pagination = paginationConfig.ToList().FirstOrDefault();
+                }
+                if (summary == true)
+                {
+                    IEnumerable<CheckProccesedSummary> summaryResult = rows.Read<CheckProccesedSummary>();
+                    cs.Summary = summaryResult.ToList().FirstOrDefault();
+                }
+                result.Data = cs;
+            }
+            catch (Exception ex)
+            {
+                result.Error.Add(new ErrorDto { Code = "E", Description = ex.ToString() });
+            }
+            return result;
+        }
+
         public dynamic GetChecksRejectedReport(DateTime date1, DateTime date2, string custName, string checkNum, string printed)
         {
             int idAgent = _appCurrentSessionContext.IdAgent;

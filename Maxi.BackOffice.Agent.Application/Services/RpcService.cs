@@ -18,7 +18,7 @@ namespace Maxi.BackOffice.Agent.Application.Services
         private readonly IOrbographRepository _orbographRepository;
         private readonly IGlobalAttributesRepository _globalAttributesRepository;
         private readonly IGiactServiceLogRepository _giactServiceLogRepository;
-        //private readonly IIrdRepository _irdRepository;
+        private readonly IIrdRepository _irdRepository; // ok
         private readonly IPcParamsRepository _pcParamsRepository;
         private readonly ICheckImagePendingRepository _checkImagePendingRepository;
 
@@ -28,7 +28,7 @@ namespace Maxi.BackOffice.Agent.Application.Services
             IOrbographRepository orbographRepository,
             IGlobalAttributesRepository globalAttributesRepository,
             IGiactServiceLogRepository giactServiceLogRepository,
-            //IIrdRepository irdRepository,
+            IIrdRepository irdRepository,
             IPcParamsRepository pcParamsRepository,
             ICheckImagePendingRepository checkImagePendingRepository)
         {
@@ -37,7 +37,7 @@ namespace Maxi.BackOffice.Agent.Application.Services
             _orbographRepository = orbographRepository;
             _globalAttributesRepository = globalAttributesRepository;
             _giactServiceLogRepository = giactServiceLogRepository;
-            //_irdRepository = irdRepository;
+            _irdRepository = irdRepository;
             _pcParamsRepository = pcParamsRepository;
             _checkImagePendingRepository = checkImagePendingRepository;
         }
@@ -80,7 +80,8 @@ namespace Maxi.BackOffice.Agent.Application.Services
             //Si hay datos de routing => busca directo en base el issuer
             if (!vlItemInfo.RoutingNum.IsBlank() && !vlItemInfo.AccountNum.IsBlank())
             {
-                var issuer = CC_GetMakerByAccResMapper.Map(_checkRepository.GetMakerByAcc(vlItemInfo.RoutingNum, vlItemInfo.AccountNum));
+                var issuer = CC_GetMakerByAccResMapper
+                    .Map(_checkRepository.GetMakerByAcc(vlItemInfo.RoutingNum, vlItemInfo.AccountNum));
                 if (issuer != null && issuer.Maker_ID > 0)
                 {
                     vlItemInfo.Maker.IdMaker = issuer.Maker_ID;
@@ -124,24 +125,7 @@ namespace Maxi.BackOffice.Agent.Application.Services
             //Ordena las notas antes de regresarlas
             vlItemInfo.AccCautionNotes.SortNotes();
 
-            //using (var context = CreateUnitOfWork())
-            //{
-            //    var r = _checkRepository.GetAllWordFilter();
-            //    // bool palabra = r.Exists(it => vlItemInfo.Customer.CustName.Contains(it.Word));
-            //    foreach (var info in r)
-            //    {
-            //        if (vlItemInfo.Customer.CustName.Contains(info.Word))
-            //        {
-            //            vlItemInfo.IsCompanyCheck = true;
-            //            break;
-            //        }
-            //    }
-            //    //if (palabra == true)
-            //    //{
-            //    //    vlItemInfo.IsCompanyCheck = true;
-            //    //}
-            //}
-
+            // asigna la bandera para saber si un cheque de compañia, de acuerdfo al CustName
             try
             {
                 if (vlItemInfo.Customer.CustName != "" && vlItemInfo.Customer.CustName != " " && vlItemInfo.Customer.CustName != null)
@@ -161,9 +145,6 @@ namespace Maxi.BackOffice.Agent.Application.Services
             {
                 vlItemInfo.IsCompanyCheck = false;
             }
-
-
-
             return vlItemInfo;
         }
 
@@ -408,7 +389,7 @@ namespace Maxi.BackOffice.Agent.Application.Services
         }
 
 
-        public AccountCautionNotes GetAccountCautionNotes(string rout, string acc, string checkNum)// Aqui se debe de validar el Routing number con la tabla de routing number bloqueados
+        public AccountCautionNotes GetAccountCautionNotes(string rout, string acc, string checkNum)
         {
             var r = new AccountCautionNotes();
             var n = _checkRepository.GetCautionNotes(rout, acc, checkNum);
@@ -420,8 +401,12 @@ namespace Maxi.BackOffice.Agent.Application.Services
 
         public AccountCautionNotes GetAccountVerificationInfo(string rout, string acc)
         {
+            //va a reemplazar la llamada GetAccountCautionNotes
+
             var r = new AccountCautionNotes();
             //Manda buscar notas
+            //Hacer consulta giact
+            //Obtener ultimo resultado
             var n = _checkRepository.GetCautionNotes(rout, acc, "");
             r.Notes.AddRange(CustomMapperBase<AccountCautionNote, SpCC_GetCautionNotesEntity>.Map(n));
             r.SortNotes();
@@ -444,10 +429,13 @@ namespace Maxi.BackOffice.Agent.Application.Services
             var r = _checkRepository.GetRecentChecksByCustomer(idCustomer);
             return CustomMapper.Map<List<CheckTiny>>(r);
         }
-        public PaginationResponse<List<CheckTiny>> GetRecentChecksByCustomer(int idIssuer, DateTime? startDate, DateTime? endDate, bool? paged, int? offset, int? limit, string sortColumn = null, string sortOrder = null)
+        public PaginationResponse<List<CheckTiny>> GetRecentChecksByCustomer(
+            int idIssuer, DateTime? startDate, DateTime? endDate, bool? paged, 
+            int? offset, int? limit, string sortColumn = null, string sortOrder = null)
         {
             PaginationResponse<List<CheckTiny>> response = new PaginationResponse<List<CheckTiny>>();
-            return _checkRepository.GetRecentChecksByCustomer(idIssuer, startDate, endDate, paged, offset, limit, sortColumn, sortOrder);
+            return _checkRepository.GetRecentChecksByCustomer(
+                idIssuer, startDate, endDate, paged, offset, limit, sortColumn, sortOrder);
         }
 
         public List<CheckTiny> GetRecentChecksByIssuer(int idIssuer)
@@ -456,7 +444,9 @@ namespace Maxi.BackOffice.Agent.Application.Services
             return CustomMapper.Map<List<CheckTiny>>(r);
         }
 
-        public PaginationResponse<List<CheckTiny>> GetRecentChecksByIssuer(int idCustomer, DateTime? startDate, DateTime? endDate, bool? paged, int? offset, int? limit, string sortColumn = null, string sortOrden = null)
+        public PaginationResponse<List<CheckTiny>> GetRecentChecksByIssuer(
+            int idCustomer, DateTime? startDate, DateTime? endDate, bool? paged,
+            int? offset, int? limit, string sortColumn = null, string sortOrden = null)
         {
             PaginationResponse<List<CheckTiny>> response = new PaginationResponse<List<CheckTiny>>();
             return _checkRepository.GetRecentChecksByIssuer(idCustomer, startDate, endDate, paged, offset, limit, sortColumn, sortOrden);
@@ -468,6 +458,13 @@ namespace Maxi.BackOffice.Agent.Application.Services
             return CustomMapper.Map<List<CheckTiny>>(r);
         }
 
+        public PaginationResponse<CheckTinyAndSummary> GetChecksProcessedReport(
+            DateTime? date1, DateTime? date2, bool? paged, bool? summary,
+            int? limit, int? offset, string custName, string checkNum)
+        {
+                return _checkRepository.GetChecksProcessedReport(
+                    date1, date2, paged, summary, limit, offset, custName, checkNum);
+        }
 
         public List<CheckTiny> GetChecksRejectedReport(DateTime date1, DateTime date2, string custName, string checkNum, string printed)
         {
@@ -478,39 +475,35 @@ namespace Maxi.BackOffice.Agent.Application.Services
         public IRDResponse GetCheckIRD(int idCheck, string docType)
         {
             IRDResponse result = null;
-            // JISC TODO: REVISAR EL ERROR
-            //var logoFile = AppDomain.CurrentDomain.BaseDirectory + @"\Assets\Logo256.bmp";
+            var logoFile = AppDomain.CurrentDomain.BaseDirectory + @"\Assets\Logo256.bmp";
 
-            //if (docType.ToUpper() == "PDF")
-            //{
-            //    var m = _irdRepository.ObtenerImpresionIRD(idCheck, logoFile);
-            //    result = CustomMapper.Map<IRDResponse>(m);
-            //    result.DocType = "PDF";
-            //}
+            if (docType.ToUpper() == "PDF")
+            {
+                var m = _irdRepository.ObtenerImpresionIRD(idCheck, logoFile);
+                result = CustomMapper.Map<IRDResponse>(m);
+                result.DocType = "PDF";
+            }
 
-            //if (docType.ToUpper() == "REPPARAMS")
-            //{
-            //    var m = _irdRepository.ObtenerImpresionIRDParams(idCheck, logoFile);
-            //    result = CustomMapper.Map<IRDResponse>(m);
-            //    result.DocType = "REPPARAMS";
-            //}
+            if (docType.ToUpper() == "REPPARAMS")
+            {
+                var m = _irdRepository.ObtenerImpresionIRDParams(idCheck, logoFile);
+                result = CustomMapper.Map<IRDResponse>(m);
+                result.DocType = "REPPARAMS";
+            }
 
-            //if (docType.ToUpper() == "VIEWREPROCESS")
-            //{
-            //    var m = _irdRepository.ObtenerImagenesIRD(idCheck, false, false);
-            //    result = CustomMapper.Map<IRDResponse>(m);
-            //    result.DocType = "TIF";
-            //}
+            if (docType.ToUpper() == "VIEWREPROCESS")
+            {
+                var m = _irdRepository.ObtenerImagenesIRD(idCheck, false, false);
+                result = CustomMapper.Map<IRDResponse>(m);
+                result.DocType = "TIF";
+            }
 
-            //if (result == null)
-            //{
-            //    var m = _irdRepository.ObtenerImagenesIRD(idCheck);
-            //    result = CustomMapper.Map<IRDResponse>(m);
-            //    result.DocType = "TIF";
-            //}
-
-            // JISC TODO revisar context.SaveChanges();
-            //context.SaveChanges();
+            if (result == null)
+            {
+                var m = _irdRepository.ObtenerImagenesIRD(idCheck);
+                result = CustomMapper.Map<IRDResponse>(m);
+                result.DocType = "TIF";
+            }
             return result;
         }
 
@@ -524,8 +517,6 @@ namespace Maxi.BackOffice.Agent.Application.Services
         public int SetPcParam(string ident, string col, string value)
         {
             var r = _pcParamsRepository.SetParam(ident, col, value);
-            // JISC TODO revisar SaveChanges()
-            //uw.SaveChanges();
             return r;
         }
 
@@ -569,8 +560,11 @@ namespace Maxi.BackOffice.Agent.Application.Services
             {
                 guidName = new List<string>();
                 guidName.AddRange(
-                imageManager.MoveImage(check.IdCheckPendingImage, check.IdImage, directory + "\\" + check.IdIssuer.ToString() + "\\Checks" + "\\" + check.IdCheck.ToString() + "\\"
-                    , directory + "\\" + check.IdIssuer.ToString() + "\\Checks" + "\\" + check.IdCheck.ToString()));
+                imageManager.MoveImage(
+                    check.IdCheckPendingImage,
+                    check.IdImage,
+                    directory + "\\" + check.IdIssuer.ToString() + "\\Checks" + "\\" + check.IdCheck.ToString() + "\\",
+                    directory + "\\" + check.IdIssuer.ToString() + "\\Checks" + "\\" + check.IdCheck.ToString()));
 
                 foreach (var item in guidName)
                 {
@@ -607,8 +601,6 @@ namespace Maxi.BackOffice.Agent.Application.Services
                 {
                     ImageManager imageManager = new ImageManager(_globalAttributesRepository.GetValue("BatchImgPath"));
                     imageManager.DeleteById(Id);
-                    // JISC TODO: revisar SaveChanges()
-                    //contex.SaveChanges();
                 }
             }
             catch (Exception ex)

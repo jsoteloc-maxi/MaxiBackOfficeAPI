@@ -25,13 +25,16 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
         {
             //row.ACF_DateCreated = DateTime.Now;
             row.IdAgCustFee = row.Insert( _dbContext.GetConnection(), _dbContext.GetTransaction());
+            _dbContext.SaveChanges();
             return row;
         }
 
         
         public int Update(CC_AgFeesEntity row)
         {
-            return row.Update(_dbContext.GetConnection(), _dbContext.GetTransaction());
+            var result = row.Update(_dbContext.GetConnection(), _dbContext.GetTransaction());
+            _dbContext.SaveChanges();
+            return result;
         }
         
         /*
@@ -43,7 +46,9 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Repositories
         public int Delete(int id)
         {
             entity.IdAgCustFee = id;
-            return entity.Delete(_dbContext.GetConnection(), _dbContext.GetTransaction());
+            var result = entity.Delete(_dbContext.GetConnection(), _dbContext.GetTransaction());
+            _dbContext.SaveChanges();
+            return result;
         }
 
         /*

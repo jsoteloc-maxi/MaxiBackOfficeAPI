@@ -19,6 +19,7 @@ namespace Maxi.BackOffice.Agent.Application.Contracts
         PaginationResponse<List<CheckTiny>> GetRecentChecksByCustomer(int idIssuer, DateTime? startDate, DateTime? endDate, bool? paged, int? offset, int? limit, string sortColumn = null, string sortOrder = null);
         PaginationResponse<List<CheckTiny>> GetRecentChecksByIssuer(int idCustomer, DateTime? startDate, DateTime? endDate, bool? paged, int? offset, int? limit, string sortColumn = null, string sortOrden = null);
         List<CheckTiny> GetChecksProcessedReport(DateTime date1, DateTime date2, string custName, string checkNum);
+        PaginationResponse<CheckTinyAndSummary> GetChecksProcessedReport(DateTime? date1, DateTime? date2, bool? paged, bool? summary, int? limit, int? offset, string custName, string checkNum);
         List<CheckTiny> GetChecksRejectedReport(DateTime date1, DateTime date2, string custName, string checkNum, string printed);
         IRDResponse GetCheckIRD(int idCheck, string docType);
         string GetPcParam(string ident, string col);

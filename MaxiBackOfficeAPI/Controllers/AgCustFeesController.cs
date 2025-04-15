@@ -30,12 +30,12 @@ namespace MaxiBackOfficeAPI.Controllers
         }
 
         /// <summary>
-        /// TODO verificar la llamada usando FromBody
+        /// 
         /// </summary>
         /// <param name="model"></param>
         /// <returns></returns>
         [HttpPost("UpgradeAgCustFees")]
-        public AgCustFeesModel UpgradeAgCustFees([FromBody] AgCustFeesModel model)
+        public AgCustFeesModel UpgradeAgCustFees(AgCustFeesModel model)
         {
             var s = (model.APIPostAction ?? "").Trim().ToUpper();
 
@@ -55,7 +55,7 @@ namespace MaxiBackOfficeAPI.Controllers
         }
 
         /// <summary>
-        /// TODO este metodo no se manda llamar desde H1, revise si es llamado desde cronos
+        /// JISC TODO este metodo no se manda llamar desde H1, revise si es llamado desde cronos
         /// </summary>
         /// <param name="model"></param>
         /// <returns></returns>
@@ -66,7 +66,7 @@ namespace MaxiBackOfficeAPI.Controllers
         //}
 
         /// <summary>
-        /// TODO este metodo no se manda llamar desde H1, revise si es llamado desde cronos
+        /// JISC TODO este metodo no se manda llamar desde H1, revise si es llamado desde cronos
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>

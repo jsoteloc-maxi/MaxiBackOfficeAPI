@@ -30,21 +30,18 @@ namespace Maxi.BackOffice.Agent.Application.Services
         {
             var entity = _agFeesRepository.Insert(AgentFeeMapper.Map(row));
             row = AgentFeeMapper.Map(entity);
-            //context.SaveChanges(); JISC TODO 
             return row;
         }
 
         public int Update(AgCustFeesModel row)
         {
             var rowCount = _agFeesRepository.Update(AgentFeeMapper.Map(row));
-            //context.SaveChanges(); JISC TODO
             return rowCount;
         }
 
         public int Delete(int id)
         {
             var rowCount = _agFeesRepository.Delete(id);
-            //context.SaveChanges(); JISc TODO
             return rowCount;
         }
 

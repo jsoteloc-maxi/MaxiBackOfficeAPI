@@ -3,6 +3,7 @@ using Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.Interfaces;
 using Maxi.BackOffice.Agent.Infrastructure.Common;
 using Maxi.BackOffice.CrossCutting.Common.Attributes;
 using Maxi.BackOffice.CrossCutting.Common.Common;
+using Maxi.BackOffice.CrossCutting.Common.SqlServer;
 using Microsoft.Data.SqlClient;
 using System.ComponentModel;
 using System.Text;
@@ -20,8 +21,8 @@ namespace Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer
         private SqlKata.Execution.QueryFactory _QueryFactory;
         private LangResourceLocator _langRes;
 
-        public SqlConnection Conn => _conn; // JISC TODO ya no debe usarsae esta propiedad directamente
-        public SqlTransaction Tran => _tran; // JISC TODO ya no debe usarsae esta propiedad directamente
+        public SqlConnection Conn => _conn;
+        public SqlTransaction Tran => _tran;
 
         public ApplicationContext(IConfiguration configuration, IAppCurrentSessionContext appCurrentSessionContext)
         {
@@ -29,11 +30,11 @@ namespace Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer
             _appCurrentSessionContext = appCurrentSessionContext;
 
 #if DEBUG
-            //_conn = new SqlConnection(configuration.GetConnectionString("OPER-D"));
-            //_conn.Open();
-            //_tran = _conn.BeginTransaction();
+            _conn = new SqlConnection(_configuration.GetConnectionString("OPER-D"));
+            _conn.Open();
+            _tran = _conn.BeginTransaction();
 
-            //_QueryFactory = new SqlKata.Execution.QueryFactory(_conn, new SqlKata.Compilers.SqlServerCompiler());
+            _QueryFactory = new SqlKata.Execution.QueryFactory(_conn, new SqlKata.Compilers.SqlServerCompiler());
 #else
             _conn = new SqlConnection(configuration.GetConnectionString("OPER-D"));
             _conn.Open();
@@ -81,7 +82,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer
         public string LangResource(string key, string def = "")
         {
             if (_langRes == null)
-                _langRes = new LangResourceLocator(this); // JISC TODO revisar si no es antipatron usar this para pasar el mismo DBContext
+                _langRes = new LangResourceLocator(this);
 
             return _langRes.GetMessage(key, _appCurrentSessionContext.IdLang, def);
         }
@@ -144,9 +145,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.UnitOfWork.SqlServer
         {
             var x = new T();
             _SetEntityKeyValue(x, id);
-            // // JISC TODO: REVISAR EL ERROR linea siguiente
-            //return x.GetById(Conn, Tran);
-            return x;
+            return x.GetById(Conn, Tran);
         }
 
         public List<T> GetEntityByFilter<T>(string filter, object param = null) where T : class, IEntityType, new()

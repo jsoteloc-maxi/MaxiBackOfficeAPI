@@ -28,6 +28,7 @@ namespace Maxi.BackOffice.Agent.Infrastructure.Contracts
         dynamic GetRecentChecksByIssuer(int idIssuer, DateTime? startDate, DateTime? endDate, bool? paged, int? offset, int? limit, string sortColumn = null, string sortOrder = null);
 
         dynamic GetChecksProcessedReport(DateTime date1, DateTime date2, string custName, string checkNum);
+        dynamic GetChecksProcessedReport(DateTime? date1, DateTime? date2, bool? paged, bool? summary, int? limit, int? offset, string custName, string checkNum);
         dynamic GetChecksRejectedReport(DateTime date1, DateTime date2, string custName, string checkNum, string printed);
 
         dynamic GetCheckEditedElements(int idCheck);
